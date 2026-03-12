@@ -81,8 +81,8 @@ We maintain a robust architecture history. See the `docs/adr/` directory for det
 ### Installation
 1. Clone the repository and navigate to the directory:
    ```bash
-   git clone <repo-url>
-   cd project-aether
+    git clone https://github.com/gabaoun/Project-Aether.git
+    cd Project-Aether
    ```
 2. Install dependencies:
    ```bash
