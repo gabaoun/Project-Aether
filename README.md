@@ -1,5 +1,9 @@
 # Project Aether: Event-Driven RAG Engine
 
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![LlamaIndex](https://img.shields.io/badge/framework-LlamaIndex-orange.svg)
+![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)
+
 **Author:** Gabriel (Gabaoun) Penha
 
 > *A highly resilient, event-driven Retrieval-Augmented Generation (RAG) engine optimizing semantic search latency by 80% while ensuring robust PII masking and enterprise-grade reliability.*
@@ -105,3 +109,5 @@ Run the comprehensive test suite:
 ```bash
 pytest tests/
 ```
+## ⚖️ License
+Distributed under the Apache 2.0 License. See `LICENSE` for more information.
