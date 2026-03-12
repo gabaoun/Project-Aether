@@ -31,20 +31,15 @@ def test_semantic_double_merging_logic(mock_embed_model, mocker):
         min_chunk_size=100
     )
     
-    # Mocking the base class behavior (Pass 1)
-    # We simulate that the base splitter returned 3 nodes: two small ones and one normal
-    node1 = MagicMock(spec=Document)
-    node1.get_content.return_value = "Short text." # 11 chars
-    
-    node2 = MagicMock(spec=Document)
-    node2.get_content.return_value = "Another short bit." # 18 chars
-    
-    node3 = MagicMock(spec=Document)
-    node3.get_content.return_value = "This is a much longer text that should exceed the minimum chunk size threshold for merging logic." # ~100 chars
+    # Use real Document objects to ensure content updates (set_content) work as expected
+    node1 = Document(text="A" * 60) # 60 chars
+    node2 = Document(text="B" * 50) # 50 chars. node1 + node2 = 110 (> 100)
+    node3 = Document(text="C" * 110) # 110 chars. Already big enough.
 
-    # Inject mock into super().get_nodes_from_documents via mocker
+    # Inject mock into the base class method. 
+    # We patch it in the splitter module where it's imported.
     mocker.patch(
-        'llama_index.core.node_parser.SemanticSplitterNodeParser.get_nodes_from_documents',
+        'src.processing.splitter.SemanticSplitterNodeParser.get_nodes_from_documents',
         return_value=[node1, node2, node3]
     )
 
@@ -53,11 +48,13 @@ def test_semantic_double_merging_logic(mock_embed_model, mocker):
     nodes = list(splitter.get_nodes_generator([doc]))
 
     # Validation
-    # node1 and node2 should have been merged because len(node1) < 100
-    # Final result should have 2 nodes (Merge of 1+2 and the isolated 3)
+    # node1 and node2 should have been merged because len(node1) < 100.
+    # After merging node2, node1's length becomes 111 (60 + 1 (newline) + 50).
+    # Since 111 > 100, the next iteration (node3) will yield the merged node1 and start fresh.
+    # Final result should have 2 nodes: (node1+node2) and (node3)
     assert len(nodes) == 2
-    assert "Short text." in nodes[0].get_content()
-    assert "Another short bit." in nodes[0].get_content()
+    assert "A" * 60 in nodes[0].get_content()
+    assert "B" * 50 in nodes[0].get_content()
     assert nodes[1].get_content() == node3.get_content()
 
 def test_generator_memory_efficiency(mock_embed_model):
