@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+langgraph
+langchain-openai
+langchain-core
+langchain-postgres
+redis
+celery
+psycopg2-binary
+pydantic>=2.0
+python-dotenv
+langsmith
+tiktoken
