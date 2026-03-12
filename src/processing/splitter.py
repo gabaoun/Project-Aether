@@ -14,6 +14,9 @@ class SemanticDoubleMergingSplitter(SemanticSplitterNodeParser):
     semantically similar chunks to ensure optimal context window usage.
     Refactored to use generators for memory efficiency.
     """
+    min_chunk_size: int = 200
+    similarity_threshold: float = 0.85
+
     def __init__(
         self, 
         embed_model: BaseEmbedding, 

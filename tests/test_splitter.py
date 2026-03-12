@@ -1,15 +1,23 @@
 import pytest
+from typing import List
 from unittest.mock import MagicMock
 from llama_index.core.schema import Document
+from llama_index.core.embeddings import BaseEmbedding
 from src.processing.splitter import SemanticDoubleMergingSplitter
 
 @pytest.fixture
 def mock_embed_model():
     """Creates a mock for the embedding model to avoid costs and latency."""
-    embed_model = MagicMock()
-    # Mocking necessary methods for SemanticSplitterNodeParser
-    embed_model.get_text_embedding.side_effect = lambda x: [0.1] * 384
-    embed_model.get_text_embedding_batch.side_effect = lambda x: [[0.1] * 384 for _ in x]
+    class MockEmbedding(BaseEmbedding):
+        def __init__(self, **kwargs):
+            super().__init__(model_name="mock-model", **kwargs)
+        def _get_query_embedding(self, query: str): return [0.1] * 384
+        def _get_text_embedding(self, text: str): return [0.1] * 384
+        def _get_text_embeddings(self, texts: List[str]): return [[0.1] * 384 for _ in texts]
+        async def _aget_query_embedding(self, query: str): return [0.1] * 384
+        async def _aget_text_embedding(self, text: str): return [0.1] * 384
+
+    embed_model = MockEmbedding()
     return embed_model
 
 def test_semantic_double_merging_logic(mock_embed_model, mocker):
