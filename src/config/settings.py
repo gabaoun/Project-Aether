@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     
     data_dir: str = "./data"
+    debug: bool = False
     
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

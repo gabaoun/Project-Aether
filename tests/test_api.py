@@ -45,6 +45,7 @@ def test_query_endpoint_error(mock_retrieval_wf, mocker):
     # Mock an error during retrieval
     mock_retrieval_wf.run = AsyncMock(side_effect=Exception("Retrieval failed"))
     mocker.patch("src.api.app.retrieval_wf", mock_retrieval_wf)
+    mocker.patch("src.api.app.settings.debug", True)
     
     response = client.post("/query", json={"query": "fail me"})
     

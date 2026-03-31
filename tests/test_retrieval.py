@@ -6,7 +6,7 @@ from llama_index.core.workflow import StartEvent, StopEvent
 @pytest.mark.asyncio
 async def test_retrieval_cache_hit(mocker):
     mock_chroma = MagicMock()
-    wf = RetrievalWorkflow(chroma_service=mock_chroma)
+    wf = RetrievalWorkflow(chroma_service=mock_chroma, reranker=None)
     
     # Mock cache hit
     mocker.patch.object(wf.cache, 'get_cache', return_value="Cached Answer")
@@ -23,7 +23,7 @@ async def test_retrieval_cache_hit(mocker):
 @pytest.mark.asyncio
 async def test_retrieval_query_transformation(mocker):
     mock_chroma = MagicMock()
-    wf = RetrievalWorkflow(chroma_service=mock_chroma)
+    wf = RetrievalWorkflow(chroma_service=mock_chroma, reranker=None)
     
     # Mock cache miss
     mocker.patch.object(wf.cache, 'get_cache', return_value=None)

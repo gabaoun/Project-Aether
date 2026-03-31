@@ -56,11 +56,17 @@ class IngestionWorkflow(Workflow):
         original_texts = [doc.text for doc in documents]
         masked_texts = await self.pii_masker.mask_documents_async(original_texts)
         
+        masked_documents = []
         for doc, masked_text in zip(documents, masked_texts):
-            doc.text = masked_text
+            new_doc = Document(
+                text=masked_text,
+                metadata=doc.metadata,
+                id_=doc.id_
+            )
+            masked_documents.append(new_doc)
             
-        logger.info(f"[INGESTION] Loaded and masked {len(documents)} documents.")
-        return DocumentsLoadedEvent(documents=documents)
+        logger.info(f"[INGESTION] Loaded and masked {len(masked_documents)} documents.")
+        return DocumentsLoadedEvent(documents=masked_documents)
 
     @step
     async def chunk_documents(self, ev: DocumentsLoadedEvent) -> NodesCreatedEvent:

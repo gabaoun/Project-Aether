@@ -6,22 +6,14 @@ from src.pipeline.retrieval import RetrievalWorkflow
 from src.config.settings import settings
 from src.utils.logger import logger
 import os
-
-app = FastAPI(title="Project Aether RAG API")
+from contextlib import asynccontextmanager
 
 # Global variables for chroma service and workflow
 chroma_service = None
 retrieval_wf = None
 
-class QueryRequest(BaseModel):
-    query: str
-
-class QueryResponse(BaseModel):
-    answer: str
-    from_cache: bool
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global chroma_service, retrieval_wf
     
     try:
@@ -38,6 +30,17 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Startup failed: {e}")
         logger.warning("API starting in degraded mode due to infrastructure or ingestion error.")
+    
+    yield
+
+app = FastAPI(title="Project Aether RAG API", lifespan=lifespan)
+
+class QueryRequest(BaseModel):
+    query: str
+
+class QueryResponse(BaseModel):
+    answer: str
+    from_cache: bool
 
 @app.get("/health")
 async def health():
@@ -58,4 +61,5 @@ async def query_docs(request: QueryRequest):
         )
     except Exception as e:
         logger.error(f"Query failed: {request.query} - Error: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred during query processing.")
+        detail = str(e) if settings.debug else "An error occurred during query processing."
+        raise HTTPException(status_code=500, detail=detail)
