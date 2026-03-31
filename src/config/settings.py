@@ -9,6 +9,12 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: Optional[str] = None
     qdrant_collection: str = "project_aether_docs"
+
+    chroma_host: str = "api.trychroma.com"
+    chroma_api_key: Optional[str] = None
+    chroma_tenant: str = "d229b721-6e42-4d8a-800d-54f2d56651a6"
+    chroma_database: str = "RAGabaoun"
+    chroma_collection: str = "project_aether_docs"
     
     redis_host: str = "localhost"
     redis_port: int = 6379

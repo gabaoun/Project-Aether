@@ -1,8 +1,6 @@
 from typing import List
-from llama_index.core import Document, VectorStoreIndex, StorageContext
+from llama_index.core import Document
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.vector_stores.qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
 from llama_index.core.workflow import (
     Workflow,
     Event,
@@ -16,9 +14,9 @@ from src.config.settings import settings
 from src.utils.token_counter import TokenCounter
 from src.core.pii import PIIMasker
 from src.services.redis import SemanticCache
+from src.services.chroma import ChromaService
 from src.utils.logger import logger
 from src.models.exceptions import IngestionException
-
 class DocumentsLoadedEvent(Event):
     documents: List[Document]
 
@@ -30,12 +28,11 @@ class MetadataEnrichedEvent(Event):
 
 class IngestionWorkflow(Workflow):
     """
-    Workflow for ingesting, chunking, and indexing documents.
+    Workflow for ingesting, chunking, and indexing documents using Chroma Cloud.
     """
-    def __init__(self, qdrant_client: QdrantClient, collection_name: str, **kwargs: dict) -> None:
+    def __init__(self, **kwargs: dict) -> None:
         super().__init__(**kwargs)
-        self.qdrant_client = qdrant_client
-        self.collection_name = collection_name
+        self.chroma_service = ChromaService()
         self.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
         self.node_parser = SemanticDoubleMergingSplitter(
             embed_model=self.embed_model,
@@ -96,27 +93,22 @@ class IngestionWorkflow(Workflow):
         logger.info("[INGESTION] Metadata enrichment complete.")
         return MetadataEnrichedEvent(nodes=enriched_nodes)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    def _persist_to_vector_store(self, nodes: List[Document]) -> VectorStoreIndex:
-        vector_store = QdrantVectorStore(
-            client=self.qdrant_client,
-            collection_name=self.collection_name,
-            enable_hybrid=True
-        )
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        return VectorStoreIndex(
-            nodes, 
-            storage_context=storage_context,
-            embed_model=self.embed_model
-        )
-
     @step
-    async def persist_to_qdrant(self, ev: MetadataEnrichedEvent) -> StopEvent:
+    async def persist_to_chroma(self, ev: MetadataEnrichedEvent) -> StopEvent:
         try:
-            index = self._persist_to_vector_store(ev.nodes)
-            logger.info(f"[INGESTION] Indexed {len(ev.nodes)} nodes in Qdrant '{self.collection_name}'.")
+            docs_to_upsert = []
+            for node in ev.nodes:
+                docs_to_upsert.append({
+                    "id": node.node_id,
+                    "text": node.get_content(),
+                    "metadata": node.metadata
+                })
+            
+            await self.chroma_service.upsert_documents(docs_to_upsert)
+            logger.info(f"[INGESTION] Indexed {len(ev.nodes)} nodes in Chroma Cloud.")
             self.cache.invalidate_cache()
-            return StopEvent(result=index)
+            return StopEvent(result=self.chroma_service)
         except Exception as e:
-            logger.error(f"[INGESTION] Failed to index nodes: {e}")
+            logger.error(f"[INGESTION] Failed to index nodes in Chroma: {e}")
             raise IngestionException(f"Failed to persist nodes: {e}")
+

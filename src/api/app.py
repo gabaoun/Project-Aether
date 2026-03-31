@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from qdrant_client import QdrantClient
+from src.services.chroma import ChromaService
 from src.pipeline.ingestion import IngestionWorkflow
 from src.pipeline.retrieval import RetrievalWorkflow
 from src.config.settings import settings
@@ -9,8 +9,8 @@ import os
 
 app = FastAPI(title="Project Aether RAG API")
 
-# Global variables for index and workflow
-index = None
+# Global variables for chroma service and workflow
+chroma_service = None
 retrieval_wf = None
 
 class QueryRequest(BaseModel):
@@ -22,21 +22,17 @@ class QueryResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    global index, retrieval_wf
+    global chroma_service, retrieval_wf
     
     try:
-        qdrant_client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
-        
-        ingestion_wf = IngestionWorkflow(
-            qdrant_client=qdrant_client, 
-            collection_name=settings.qdrant_collection
-        )
+        ingestion_wf = IngestionWorkflow()
         
         if os.path.exists(settings.data_dir) and os.listdir(settings.data_dir):
             logger.info(f"Initializing ingestion from {settings.data_dir}...")
-            index = await ingestion_wf.run(input_dir=settings.data_dir)
-            retrieval_wf = RetrievalWorkflow(index=index)
-            logger.info("API Startup: Ingestion complete and index ready.")
+            # ingestion_wf.run returns chroma_service (StopEvent result)
+            chroma_service = await ingestion_wf.run(input_dir=settings.data_dir)
+            retrieval_wf = RetrievalWorkflow(chroma_service=chroma_service)
+            logger.info("API Startup: Ingestion complete and Chroma Cloud index ready.")
         else:
             logger.warning(f"Data directory '{settings.data_dir}' is empty or missing. API in degraded mode.")
     except Exception as e:
@@ -45,7 +41,7 @@ async def startup_event():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "index_ready": index is not None}
+    return {"status": "ok", "index_ready": chroma_service is not None}
 
 @app.post("/query", response_model=QueryResponse)
 async def query_docs(request: QueryRequest):

@@ -6,9 +6,9 @@ from llama_index.core.workflow import StartEvent
 
 @pytest.mark.asyncio
 async def test_load_documents_and_mask_pii(mocker):
-    # Mocking QdrantClient and other dependencies
-    mock_qdrant = MagicMock()
-    wf = IngestionWorkflow(qdrant_client=mock_qdrant, collection_name="test_collection")
+    # Mocking ChromaService and other dependencies
+    mocker.patch('src.pipeline.ingestion.ChromaService')
+    wf = IngestionWorkflow()
     
     # Mock SimpleDirectoryReader
     mock_reader = MagicMock()

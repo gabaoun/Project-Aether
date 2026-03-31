@@ -14,8 +14,7 @@ from llama_index.llms.openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
-from src.services.redis import SemanticCache
-from src.utils.token_counter import TokenCounter
+from src.services.chroma import ChromaService
 from src.utils.logger import logger
 from src.models.exceptions import RetrievalException
 
@@ -38,11 +37,11 @@ class RelevanceJudgedEvent(Event):
 
 class RetrievalWorkflow(Workflow):
     """
-    Workflow for RAG retrieval with query transformation, reranking, and cache checks.
+    Workflow for RAG retrieval with query transformation, reranking, and cache checks using Chroma Cloud.
     """
-    def __init__(self, index: VectorStoreIndex, **kwargs: dict) -> None:
+    def __init__(self, chroma_service: ChromaService, **kwargs: dict) -> None:
         super().__init__(**kwargs)
-        self.index = index
+        self.chroma_service = chroma_service
         self.llm = OpenAI(model="gpt-4o", api_key=settings.openai_api_key)
         self.reranker = FlagEmbeddingReranker(
             model="BAAI/bge-reranker-v2-m3",
@@ -86,9 +85,24 @@ class RetrievalWorkflow(Workflow):
 
     @step
     async def retrieve_context(self, ev: QueryTransformedEvent) -> Union[ContextRetrievedEvent, StreamingStatusEvent]:
-        self.send_event(StreamingStatusEvent(status="Retrieving context..."))
-        retriever = self.index.as_retriever(similarity_top_k=20)
-        nodes = retriever.retrieve(ev.query_bundle)
+        self.send_event(StreamingStatusEvent(status="Retrieving context from Chroma Cloud..."))
+        
+        # Using Chroma Cloud Hybrid Search
+        results = await self.chroma_service.hybrid_search(ev.query_bundle.query_str, n_results=20)
+        
+        from llama_index.core.schema import TextNode
+        nodes = []
+        for res in results:
+            node = NodeWithScore(
+                node=TextNode(
+                    text=res['content'],
+                    id_=res['id'],
+                    metadata=res['metadata']
+                ),
+                score=res['score']
+            )
+            nodes.append(node)
+            
         return ContextRetrievedEvent(nodes=nodes, query_bundle=ev.query_bundle, loops=ev.loops)
 
     @step
