@@ -1,9 +1,8 @@
 import chromadb
 from chromadb.config import Settings
 from chromadb.api.models.Collection import Collection
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import uuid
-import math
 from src.config.settings import settings
 from src.utils.logger import logger
 

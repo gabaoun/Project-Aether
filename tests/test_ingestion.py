@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from llama_index.core.schema import Document
 from src.pipeline.ingestion import IngestionWorkflow, DocumentsLoadedEvent
 from llama_index.core.workflow import StartEvent

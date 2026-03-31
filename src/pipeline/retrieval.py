@@ -1,5 +1,5 @@
-from typing import List, Optional, Union
-from llama_index.core import VectorStoreIndex, QueryBundle
+from typing import List, Union
+from llama_index.core import QueryBundle
 from llama_index.core.schema import NodeWithScore
 from llama_index.core.workflow import (
     Workflow,
