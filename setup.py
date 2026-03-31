@@ -4,7 +4,7 @@ setup(
     name="project-aether",
     version="0.1.0",
     author="Gabriel (Gabaoun) Penha",
-    description="RAG Pipeline with Event-Driven Workflows",
+    description="RAG Pipeline with Event-Driven Workflows and FastAPI",
     packages=find_packages(),
     install_requires=[
         "llama-index>=0.11.0",
@@ -25,5 +25,7 @@ setup(
         "tenacity",
         "numpy",
         "tiktoken",
+        "fastapi",
+        "uvicorn",
     ],
 )

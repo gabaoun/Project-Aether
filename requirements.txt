@@ -18,4 +18,8 @@ tenacity
 numpy
 pytest
 pytest-asyncio
+pytest-mock
 mock
+fastapi
+uvicorn
+httpx
