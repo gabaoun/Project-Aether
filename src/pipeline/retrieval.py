@@ -9,12 +9,13 @@ from llama_index.core.workflow import (
     step,
 )
 from llama_index.core.postprocessor import LongContextReorder
-from llama_index.postprocessor.flag_embedding_reranker import FlagEmbeddingReranker
 from llama_index.llms.openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
 from src.services.chroma import ChromaService
+from src.services.redis import SemanticCache
+from src.utils.token_counter import TokenCounter
 from src.utils.logger import logger
 from src.models.exceptions import RetrievalException
 
@@ -37,19 +38,27 @@ class RelevanceJudgedEvent(Event):
 
 class RetrievalWorkflow(Workflow):
     """
-    Workflow for RAG retrieval with query transformation, reranking, and cache checks using Chroma Cloud.
+    Workflow for RAG retrieval with query transformation, reranking, and cache checks using Chroma Cloud.      
     """
-    def __init__(self, chroma_service: ChromaService, **kwargs: dict) -> None:
+    def __init__(self, chroma_service: ChromaService, reranker=None, **kwargs: dict) -> None:
         super().__init__(**kwargs)
         self.chroma_service = chroma_service
         self.llm = OpenAI(model="gpt-4o", api_key=settings.openai_api_key)
-        self.reranker = FlagEmbeddingReranker(
-            model="BAAI/bge-reranker-v2-m3",
-            top_n=5
-        )
+        self.reranker = reranker or self._build_reranker()
         self.reorder = LongContextReorder()
         self.cache = SemanticCache()
         self.token_counter = TokenCounter(model_name="gpt-4o")
+
+    def _build_reranker(self):
+        try:
+            from llama_index.postprocessor.flag_embedding_reranker import FlagEmbeddingReranker
+            return FlagEmbeddingReranker(
+                model="BAAI/bge-reranker-v2-m3",
+                top_n=5
+            )
+        except ImportError:
+            logger.warning("FlagEmbeddingReranker not available. Skipping reranking.")
+            return None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _call_llm_with_retry(self, prompt: str):
@@ -102,7 +111,7 @@ class RetrievalWorkflow(Workflow):
                 score=res['score']
             )
             nodes.append(node)
-            
+
         return ContextRetrievedEvent(nodes=nodes, query_bundle=ev.query_bundle, loops=ev.loops)
 
     @step
@@ -143,10 +152,13 @@ class RetrievalWorkflow(Workflow):
         if not ev.nodes:
             return StopEvent(result={"answer": "No relevant context found.", "source_nodes": [], "from_cache": False})
 
-        self.send_event(StreamingStatusEvent(status="Reranking results..."))
         try:
-            reranked_nodes = self.reranker.postprocess_nodes(ev.nodes, query_bundle=ev.query_bundle)
-            final_nodes = self.reorder.postprocess_nodes(reranked_nodes)
+            if self.reranker:
+                self.send_event(StreamingStatusEvent(status="Reranking results..."))
+                reranked_nodes = self.reranker.postprocess_nodes(ev.nodes, query_bundle=ev.query_bundle)
+                final_nodes = self.reorder.postprocess_nodes(reranked_nodes)
+            else:
+                final_nodes = self.reorder.postprocess_nodes(ev.nodes)
         except Exception as e:
             logger.error(f"[RETRIEVAL] Post-processing error: {e}")
             final_nodes = ev.nodes
