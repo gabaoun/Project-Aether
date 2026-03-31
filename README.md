@@ -1,41 +1,53 @@
 # Project Aether: RAG Pipeline with Event-Driven Workflows
 
 ## Overview
-Project Aether is a Retrieval-Augmented Generation (RAG) system built with Python and LlamaIndex. It implements a document ingestion and retrieval pipeline using an event-driven architecture (Workflows) to handle complex tasks like query transformation, metadata enrichment, and semantic caching.
-
-The project is designed as a modular reference for building RAG applications that require more than simple linear processing, incorporating retries, asynchronous operations, and a clear separation of concerns.
+Project Aether is a Retrieval-Augmented Generation (RAG) system built with Python and LlamaIndex. It implements a document ingestion and retrieval pipeline using an event-driven architecture (Workflows) and provides both a CLI and a FastAPI interface.
 
 ## Features
-- **Event-Driven Ingestion:** Processes documents through a series of discrete steps (Loading -> PII Masking -> Semantic Splitting -> Enrichment -> Indexing).
-- **Advanced Retrieval:** Implements HyDE (Hypothetical Document Embeddings), query refinement loops, and relevance judgment (Chain-of-Thought) before generating answers.
-- **Semantic Caching:** Uses Redis to store and retrieve previously generated answers for identical or highly similar queries to reduce LLM latency and cost.
-- **PII Masking:** Basic regex-based masking of emails and phone numbers during the ingestion phase.
-- **Resiliency:** Uses `tenacity` for exponential backoff retries on LLM and database operations.
-- **Memory Efficiency:** Uses Python generators during document splitting to handle larger datasets without high memory consumption.
+- **FastAPI Layer:** A RESTful API to interact with the RAG engine.
+- **Event-Driven Ingestion:** Processes documents through a series of discrete steps.
+- **Advanced Retrieval:** Implements HyDE, query refinement loops, and relevance judgment.
+- **Semantic Caching:** Uses Redis to store and retrieve previously generated answers.
+- **Degraded Mode:** Gracefully handles missing Redis/Qdrant by logging warnings and continuing if possible.
+- **Resiliency:** Uses `tenacity` for exponential backoff retries.
+
+## Run CLI
+To start the interactive CLI mode:
+```bash
+python main.py
+```
+
+## Run API
+To start the FastAPI server:
+```bash
+python main.py --api
+```
+The API will be available at `http://localhost:8000`. You can access the automatic documentation (Swagger UI) at `http://localhost:8000/docs`.
+
+## Example API Request
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is this project?"}'
+```
 
 ## Tech Stack
 - **Language:** Python 3.11+
+- **API Framework:** FastAPI
 - **Orchestration:** LlamaIndex (Workflows)
 - **Vector Database:** Qdrant
 - **Cache:** Redis
 - **LLM:** OpenAI (GPT-4o, GPT-4o-mini)
-- **Embeddings:** HuggingFace (BGE models)
 - **Configuration:** Pydantic Settings
 
 ## Key Technical Points
-- **Modular Refactoring:** Logic is split into `core` (business logic), `services` (external integrations), `pipeline` (workflow orchestration), and `models` (data structures).
-- **Asynchronous Execution:** Heavy use of `asyncio` for non-blocking I/O, particularly in PII masking and LLM calls.
-- **Custom Splitter:** Implements a `SemanticDoubleMergingSplitter` which performs an initial semantic split and then merges small chunks that fall below a minimum size threshold.
-
-## Design Decisions
-- **LlamaIndex Workflows over Pipelines:** Chosen to allow for non-linear logic, such as the query refinement loop in the retrieval workflow which can re-run if initial results are deemed irrelevant.
-- **BGE-Reranker:** Integrated to improve precision by re-evaluating the top retrieved nodes using a cross-encoder model.
-- **Strict Typing:** All major functions and classes use Python type hints for better maintainability and error detection.
+- **Modular Refactoring:** Logic is split into `core`, `services`, `pipeline`, `models`, `config`, `api`, and `utils`.
+- **Mocked Testing:** The project includes unit tests for all layers (ingestion, retrieval, splitter, and API) with extensive mocking to ensure tests run in isolation.
+- **Degraded Mode Infrastructure:** The system detects connection failures to Redis or Qdrant and adjusts its behavior (e.g., skipping cache) instead of crashing.
 
 ## Limitations
-- **Regex-based PII:** The current PII masker uses basic regular expressions and is not a substitute for a production-grade NER (Named Entity Recognition) system.
-- **Simplified Semantic Cache:** The current implementation uses exact string matching in Redis for the cache keys rather than true vector-based similarity search.
-- **Single Collection:** Currently hardcoded to use a single Qdrant collection for all documents.
+- **Regex-based PII:** Basic regular expression masking for emails and phone numbers.
+- **Simplified Cache:** Uses exact query string matching for Redis keys.
 
 ## Getting Started
 
@@ -45,11 +57,7 @@ The project is designed as a modular reference for building RAG applications tha
 - OpenAI API Key
 
 ### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/Project-Aether.git
-   cd Project-Aether
-   ```
+1. Clone the repository and navigate to the directory.
 2. Install dependencies:
    ```bash
    pip install -r requirements.txt
@@ -59,22 +67,13 @@ The project is designed as a modular reference for building RAG applications tha
    cp .env.example .env
    # Edit .env with your OpenAI API Key and other settings
    ```
-4. Start infrastructure:
+4. Start infrastructure (Optional for basic runs):
    ```bash
    docker-compose up -d
    ```
 
-### Usage
-Ensure you have documents in the `./data` directory (as specified in your `.env`), then run:
-```bash
-python main.py
-```
-
-## Testing
+### Testing
 Run the test suite using pytest:
 ```bash
 pytest tests/
 ```
-
-## Purpose
-This project was developed to demonstrate a technically sound approach to building RAG systems. It focuses on clean architecture, error handling, and implementing advanced RAG patterns in a way that is maintainable and extensible.

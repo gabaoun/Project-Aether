@@ -32,4 +32,6 @@ jobs:
         LOG_LEVEL: INFO
         DATA_DIR: ./tests/data
       run: |
+        # Run tests, excluding integration style if no services are running
+        # But our unit tests should all be mocked correctly
         pytest tests/
