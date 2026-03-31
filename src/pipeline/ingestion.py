@@ -1,6 +1,5 @@
 from typing import List
 from llama_index.core import Document
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.workflow import (
     Workflow,
     Event,
@@ -9,7 +8,7 @@ from llama_index.core.workflow import (
     step,
 )
 from tenacity import retry, stop_after_attempt, wait_exponential
-from src.core.splitter import SemanticDoubleMergingSplitter
+from llama_index.core.node_parser import SentenceSplitter
 from src.config.settings import settings
 from src.utils.token_counter import TokenCounter
 from src.core.pii import PIIMasker
@@ -33,10 +32,9 @@ class IngestionWorkflow(Workflow):
     def __init__(self, **kwargs: dict) -> None:
         super().__init__(**kwargs)
         self.chroma_service = ChromaService()
-        self.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
-        self.node_parser = SemanticDoubleMergingSplitter(
-            embed_model=self.embed_model,
-            min_chunk_size=500
+        self.node_parser = SentenceSplitter(
+            chunk_size=1024,
+            chunk_overlap=20
         )
         self.token_counter = TokenCounter()
         self.pii_masker = PIIMasker()

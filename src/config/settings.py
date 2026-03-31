@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     semantic_cache_threshold: float = 0.85
     
+    database_url: str = "postgresql://user:password@postgres:5432/aether"
+    
     phoenix_collector_endpoint: str = "http://localhost:6006"
     log_level: str = "INFO"
     
