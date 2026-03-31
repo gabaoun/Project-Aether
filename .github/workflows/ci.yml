@@ -31,6 +31,7 @@ jobs:
 
       - name: Run tests
         env:
+          OPENAI_API_KEY: mock_key
           LOG_LEVEL: INFO
           DATA_DIR: ./tests/data
         run: |
