@@ -6,7 +6,7 @@ from src.config.settings import settings
 from src.utils.logger import logger
 from src.db.session import SessionLocal, get_db
 from src.models.db import IngestionJob
-from src.worker import queue
+from src.infra.queue import get_queue
 import os
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
@@ -63,6 +63,7 @@ async def ingest_docs(db: Session = Depends(get_db)):
         db.refresh(job)
         
         # Enqueue the background task
+        queue = get_queue()
         queue.enqueue("src.jobs.ingestion.process_ingestion", str(job.id))
         
         logger.info(f"Ingestion job {job.id} enqueued.")
