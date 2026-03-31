@@ -1,75 +1,80 @@
-# Project Aether: Event-Driven RAG Engine
+# Project Aether: RAG Pipeline with Event-Driven Workflows
 
-![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![LlamaIndex](https://img.shields.io/badge/framework-LlamaIndex-orange.svg)
-![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)
+## Overview
+Project Aether is a Retrieval-Augmented Generation (RAG) system built with Python and LlamaIndex. It implements a document ingestion and retrieval pipeline using an event-driven architecture (Workflows) to handle complex tasks like query transformation, metadata enrichment, and semantic caching.
 
-**Author:** Gabriel (Gabaoun) Penha
+The project is designed as a modular reference for building RAG applications that require more than simple linear processing, incorporating retries, asynchronous operations, and a clear separation of concerns.
 
-> *A highly resilient, event-driven Retrieval-Augmented Generation (RAG) engine optimizing semantic search latency by 80% while ensuring robust PII masking and enterprise-grade reliability.*
+## Features
+- **Event-Driven Ingestion:** Processes documents through a series of discrete steps (Loading -> PII Masking -> Semantic Splitting -> Enrichment -> Indexing).
+- **Advanced Retrieval:** Implements HyDE (Hypothetical Document Embeddings), query refinement loops, and relevance judgment (Chain-of-Thought) before generating answers.
+- **Semantic Caching:** Uses Redis to store and retrieve previously generated answers for identical or highly similar queries to reduce LLM latency and cost.
+- **PII Masking:** Basic regex-based masking of emails and phone numbers during the ingestion phase.
+- **Resiliency:** Uses `tenacity` for exponential backoff retries on LLM and database operations.
+- **Memory Efficiency:** Uses Python generators during document splitting to handle larger datasets without high memory consumption.
 
-Project Aether is a world-class reference implementation of a complex RAG system. By shifting from standard linear pipelines to LlamaIndex Workflows, it introduces cycles, streaming, and robust failure recovery natively into the ingestion and retrieval processes.
+## Tech Stack
+- **Language:** Python 3.11+
+- **Orchestration:** LlamaIndex (Workflows)
+- **Vector Database:** Qdrant
+- **Cache:** Redis
+- **LLM:** OpenAI (GPT-4o, GPT-4o-mini)
+- **Embeddings:** HuggingFace (BGE models)
+- **Configuration:** Pydantic Settings
 
-## 🌟 Key Features
+## Key Technical Points
+- **Modular Refactoring:** Logic is split into `core` (business logic), `services` (external integrations), `pipeline` (workflow orchestration), and `models` (data structures).
+- **Asynchronous Execution:** Heavy use of `asyncio` for non-blocking I/O, particularly in PII masking and LLM calls.
+- **Custom Splitter:** Implements a `SemanticDoubleMergingSplitter` which performs an initial semantic split and then merges small chunks that fall below a minimum size threshold.
 
-* **Event-Driven Workflows:** Employs LlamaIndex `Workflow` and `Event` classes to orchestrate query decomposition, HyDE, and Chain-of-Thought (CoT) relevance judgments with self-correction loops.
-* **Semantic Caching (Redis):** Caches query vectors via HNSW indices, intercepting recurrent queries to deliver sub-100ms response times and drastically reduce LLM API costs.
-* **Enterprise Governance:** Integrates an asynchronous Microsoft Presidio masking layer to strip Personally Identifiable Information (PII) before documents ever hit the vector database.
-* **Resilient Infrastructure:** Bulletproofed with `tenacity` for exponential backoff on all critical third-party I/O (LLMs, Qdrant).
-* **Memory-Optimized Ingestion:** Implements a custom `SemanticDoubleMergingSplitter` leveraging Python Generators to process massive document sets without memory bloat.
+## Design Decisions
+- **LlamaIndex Workflows over Pipelines:** Chosen to allow for non-linear logic, such as the query refinement loop in the retrieval workflow which can re-run if initial results are deemed irrelevant.
+- **BGE-Reranker:** Integrated to improve precision by re-evaluating the top retrieved nodes using a cross-encoder model.
+- **Strict Typing:** All major functions and classes use Python type hints for better maintainability and error detection.
 
-## 📈 Benchmarks
+## Limitations
+- **Regex-based PII:** The current PII masker uses basic regular expressions and is not a substitute for a production-grade NER (Named Entity Recognition) system.
+- **Simplified Semantic Cache:** The current implementation uses exact string matching in Redis for the cache keys rather than true vector-based similarity search.
+- **Single Collection:** Currently hardcoded to use a single Qdrant collection for all documents.
 
-| Metric | Basic RAG | Project Aether | Impact |
-|--------|-----------|----------------|--------|
-| **Faithfulness (Hallucination Rate)** | 62% | **88%** | ⬇️ HyDE & CoT Evaluation |
-| **Answer Relevance** | 70% | **92%** | ⬆️ BGE-Reranker & Reordering |
-| **Context Precision** | 55% | **85%** | ⬆️ Semantic Chunking Generators |
-| **Avg. Latency (P95)** | 5.2s | **0.8s** | ⚡ Semantic Cache (80% Hit Rate) |
-
-## 🛠 Architecture Decision Records (ADR)
-We maintain a robust architecture history. See the `docs/adr/` directory for detailed reasoning on our stack:
-- [ADR 001: Native Vector Search on Redis](docs/adr/ADR-001-Native-Vector-Search-Redis.md)
-- [ADR 002: LlamaIndex Workflows for Event-Driven RAG](docs/adr/002-LlamaIndex-Workflows-for-Event-Driven-RAG.md)
-- [ADR 003: Semantic Chunking Strategy](docs/adr/003-Semantic-Chunking-Strategy.md)
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Docker & Docker Compose
-- Python 3.11+ (Uses `async/await` heavily)
+- Docker and Docker Compose
+- Python 3.11+
 - OpenAI API Key
 
 ### Installation
-1. Clone the repository and navigate to the directory:
+1. Clone the repository:
    ```bash
-    git clone https://github.com/gabaoun/Project-Aether.git
-    cd Project-Aether
+   git clone https://github.com/your-username/Project-Aether.git
+   cd Project-Aether
    ```
 2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Environment Setup:
+3. Setup environment variables:
    ```bash
    cp .env.example .env
-   # Add your OPENAI_API_KEY to .env
+   # Edit .env with your OpenAI API Key and other settings
    ```
-4. Start the infrastructure (Qdrant, Postgres, Redis):
+4. Start infrastructure:
    ```bash
    docker-compose up -d
    ```
 
 ### Usage
-Execute the main application to start ingestion (if `./data` is populated) and the interactive retrieval loop:
+Ensure you have documents in the `./data` directory (as specified in your `.env`), then run:
 ```bash
 python main.py
 ```
 
-### Testing
-Run the comprehensive test suite:
+## Testing
+Run the test suite using pytest:
 ```bash
 pytest tests/
 ```
-## ⚖️ License
-Distributed under the Apache 2.0 License. See `LICENSE` for more information.
+
+## Purpose
+This project was developed to demonstrate a technically sound approach to building RAG systems. It focuses on clean architecture, error handling, and implementing advanced RAG patterns in a way that is maintainable and extensible.

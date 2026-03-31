@@ -1,7 +1,3 @@
-"""
-Semantic Double Merging Splitter
-Author: Gabriel (Gabaoun) Penha
-"""
 from typing import List, Sequence, Generator
 from llama_index.core.node_parser import SemanticSplitterNodeParser
 from llama_index.core.schema import BaseNode, Document
@@ -12,7 +8,6 @@ class SemanticDoubleMergingSplitter(SemanticSplitterNodeParser):
     """
     A semantic splitter that performs a second pass to merge small, 
     semantically similar chunks to ensure optimal context window usage.
-    Refactored to use generators for memory efficiency.
     """
     min_chunk_size: int = 200
     similarity_threshold: float = 0.85
@@ -31,12 +26,10 @@ class SemanticDoubleMergingSplitter(SemanticSplitterNodeParser):
     def get_nodes_generator(self, documents: Sequence[Document], **kwargs) -> Generator[BaseNode, None, None]:
         """Yields nodes one by one to save memory, processing doc by doc."""
         for doc in documents:
-            # First pass: standard semantic splitting doc by doc to prevent memory bloat
             nodes = super().get_nodes_from_documents([doc], **kwargs)
             if not nodes:
                 continue
 
-            # Second pass: Double Merging stream
             current_node = nodes[0]
             for i in range(1, len(nodes)):
                 next_node = nodes[i]
@@ -50,5 +43,4 @@ class SemanticDoubleMergingSplitter(SemanticSplitterNodeParser):
             yield current_node
 
     def get_nodes_from_documents(self, documents: Sequence[Document], **kwargs) -> List[BaseNode]:
-        """For compatibility with strict LlamaIndex interfaces, though generator is preferred."""
         return list(self.get_nodes_generator(documents, **kwargs))
