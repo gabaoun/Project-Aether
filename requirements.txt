@@ -8,6 +8,10 @@ llama-index-vector-stores-qdrant
 qdrant-client
 chromadb>=0.6.0
 redis
+sqlalchemy
+psycopg2-binary
+rq
+alembic
 pydantic>=2.0
 pydantic-settings
 python-dotenv
