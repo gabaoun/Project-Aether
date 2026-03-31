@@ -7,6 +7,7 @@ from llama_index.core.workflow import (
     StartEvent,
     StopEvent,
     step,
+    Context,
 )
 from llama_index.core.postprocessor import LongContextReorder
 from llama_index.llms.openai import OpenAI
@@ -67,7 +68,7 @@ class RetrievalWorkflow(Workflow):
         return response
 
     @step
-    async def process_start(self, ev: StartEvent) -> Union[QueryTransformedEvent, StopEvent, StreamingStatusEvent]:
+    async def process_start(self, ctx: Context, ev: StartEvent) -> Union[QueryTransformedEvent, StopEvent, StreamingStatusEvent]:
         query_str = ev.get("query")
         if not query_str:
             raise RetrievalException("query must be provided in StartEvent", status_code=400)
@@ -75,10 +76,10 @@ class RetrievalWorkflow(Workflow):
         # 1. Cache Check
         cached_answer = self.cache.get_cache(query_str)
         if cached_answer:
-            self.send_event(StreamingStatusEvent(status="Cache Hit! Returning cached response."))
+            ctx.send_event(StreamingStatusEvent(status="Cache Hit! Returning cached response."))
             return StopEvent(result={"answer": cached_answer, "source_nodes": [], "from_cache": True})
 
-        self.send_event(StreamingStatusEvent(status="Transforming query..."))
+        ctx.send_event(StreamingStatusEvent(status="Transforming query..."))
 
         # Decompose & HyDE (Simplified)
         hyde_prompt = f"Write a hypothetical document that would answer the following question: {query_str}"
@@ -93,8 +94,8 @@ class RetrievalWorkflow(Workflow):
         return QueryTransformedEvent(query_bundle=query_bundle, loops=0)
 
     @step
-    async def retrieve_context(self, ev: QueryTransformedEvent) -> Union[ContextRetrievedEvent, StreamingStatusEvent]:
-        self.send_event(StreamingStatusEvent(status="Retrieving context from Chroma Cloud..."))
+    async def retrieve_context(self, ctx: Context, ev: QueryTransformedEvent) -> Union[ContextRetrievedEvent, StreamingStatusEvent]:
+        ctx.send_event(StreamingStatusEvent(status="Retrieving context from Chroma Cloud..."))
         
         # Using Chroma Cloud Hybrid Search
         results = await self.chroma_service.hybrid_search(ev.query_bundle.query_str, n_results=20)
@@ -115,11 +116,11 @@ class RetrievalWorkflow(Workflow):
         return ContextRetrievedEvent(nodes=nodes, query_bundle=ev.query_bundle, loops=ev.loops)
 
     @step
-    async def judge_relevance(self, ev: ContextRetrievedEvent) -> Union[RelevanceJudgedEvent, QueryTransformedEvent, StreamingStatusEvent]:
+    async def judge_relevance(self, ctx: Context, ev: ContextRetrievedEvent) -> Union[RelevanceJudgedEvent, QueryTransformedEvent, StreamingStatusEvent]:
         if ev.loops >= 1 or not ev.nodes:
             return RelevanceJudgedEvent(is_relevant=True, nodes=ev.nodes, query_bundle=ev.query_bundle)
 
-        self.send_event(StreamingStatusEvent(status="Judging context relevance..."))
+        ctx.send_event(StreamingStatusEvent(status="Judging context relevance..."))
         context_text = "\n".join([n.get_content() for n in ev.nodes[:3]])
         
         judge_prompt = (
@@ -136,7 +137,7 @@ class RetrievalWorkflow(Workflow):
             is_relevant = True
         
         if not is_relevant:
-            self.send_event(StreamingStatusEvent(status="Refining query..."))
+            ctx.send_event(StreamingStatusEvent(status="Refining query..."))
             refine_prompt = f"Rewrite the query '{ev.query_bundle.query_str}' to be more specific for better search results."
             try:
                 new_query_resp = await self._call_llm_with_retry(refine_prompt)
@@ -148,13 +149,13 @@ class RetrievalWorkflow(Workflow):
         return RelevanceJudgedEvent(is_relevant=True, nodes=ev.nodes, query_bundle=ev.query_bundle)
 
     @step
-    async def post_process(self, ev: RelevanceJudgedEvent) -> Union[StopEvent, StreamingStatusEvent]:
+    async def post_process(self, ctx: Context, ev: RelevanceJudgedEvent) -> Union[StopEvent, StreamingStatusEvent]:
         if not ev.nodes:
             return StopEvent(result={"answer": "No relevant context found.", "source_nodes": [], "from_cache": False})
 
         try:
             if self.reranker:
-                self.send_event(StreamingStatusEvent(status="Reranking results..."))
+                ctx.send_event(StreamingStatusEvent(status="Reranking results..."))
                 reranked_nodes = self.reranker.postprocess_nodes(ev.nodes, query_bundle=ev.query_bundle)
                 final_nodes = self.reorder.postprocess_nodes(reranked_nodes)
             else:
@@ -163,7 +164,7 @@ class RetrievalWorkflow(Workflow):
             logger.error(f"[RETRIEVAL] Post-processing error: {e}")
             final_nodes = ev.nodes
         
-        self.send_event(StreamingStatusEvent(status="Generating answer..."))
+        ctx.send_event(StreamingStatusEvent(status="Generating answer..."))
         context_str = "\n".join([n.get_content() for n in final_nodes])
         final_prompt = f"Context:\n{context_str}\n\nQuestion: {ev.query_bundle.query_str}\n\nAnswer:"
         
@@ -175,3 +176,4 @@ class RetrievalWorkflow(Workflow):
         except Exception as e:
             logger.error(f"[RETRIEVAL] Answer generation failed: {e}")
             raise RetrievalException(f"Failed to generate answer: {e}")
+
