@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     """
     Configuration settings for Project Aether.
     """
-    openai_api_key: str
+    openai_api_key: Optional[str] = None
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: Optional[str] = None
     qdrant_collection: str = "project_aether_docs"
