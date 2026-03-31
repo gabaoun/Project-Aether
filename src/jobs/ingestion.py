@@ -1,6 +1,6 @@
 import asyncio
 from src.db.session import SessionLocal
-from src.models.db import IngestionJob, Document
+from src.models.db import IngestionJob
 from src.pipeline.ingestion import IngestionWorkflow
 from src.utils.logger import logger
 from src.config.settings import settings

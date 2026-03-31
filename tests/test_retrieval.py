@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from src.pipeline.retrieval import RetrievalWorkflow, QueryTransformedEvent
 from llama_index.core.workflow import StartEvent, StopEvent
 

@@ -4,10 +4,9 @@ from src.services.chroma import ChromaService
 from src.pipeline.retrieval import RetrievalWorkflow
 from src.config.settings import settings
 from src.utils.logger import logger
-from src.db.session import SessionLocal, get_db
+from src.db.session import get_db
 from src.models.db import IngestionJob
 from src.infra.queue import get_queue
-import os
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
 
