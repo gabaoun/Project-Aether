@@ -8,21 +8,7 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - ./qdrant_data:/qdrant/storage
-    networks:
-      - aether_network
-
-  postgres:
-    image: ankane/pgvector:latest
-    container_name: postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: project_aether
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - qdrant_data:/qdrant/storage
     networks:
       - aether_network
 
@@ -42,5 +28,5 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
+  qdrant_data:
   redis_data:

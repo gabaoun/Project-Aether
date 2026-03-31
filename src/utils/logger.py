@@ -1,7 +1,7 @@
 import logging
 import json
 from datetime import datetime
-from src.utils.config import settings
+from src.config.settings import settings
 
 class JSONFormatter(logging.Formatter):
     """Custom JSON formatter for structured logging."""
@@ -14,7 +14,6 @@ class JSONFormatter(logging.Formatter):
             "funcName": record.funcName,
             "lineNo": record.lineno,
             "service": "project_aether",
-            "environment": getattr(settings, "environment", "development")
         }
         
         if record.exc_info:
@@ -24,7 +23,7 @@ class JSONFormatter(logging.Formatter):
 
 def setup_logger() -> logging.Logger:
     """Configures and returns the root logger with JSON formatting."""
-    logger = logging.getLogger()
+    logger = logging.getLogger("project_aether")
     
     # Remove existing handlers to avoid duplicates
     for handler in logger.handlers[:]:
