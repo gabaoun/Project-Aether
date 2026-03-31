@@ -18,44 +18,6 @@ Project Aether is a world-class reference implementation of a complex RAG system
 * **Resilient Infrastructure:** Bulletproofed with `tenacity` for exponential backoff on all critical third-party I/O (LLMs, Qdrant).
 * **Memory-Optimized Ingestion:** Implements a custom `SemanticDoubleMergingSplitter` leveraging Python Generators to process massive document sets without memory bloat.
 
-## 🏗 Architecture Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant RetrievalWorkflow
-    participant SemanticCache
-    participant LlamaIndex
-    participant Qdrant
-    participant LLM
-
-    User->>RetrievalWorkflow: Query
-    RetrievalWorkflow->>SemanticCache: Check HNSW Cache (Cosine Similarity)
-    alt Cache Hit (> 0.85)
-        SemanticCache-->>RetrievalWorkflow: Cached Answer
-        RetrievalWorkflow-->>User: Sub-100ms Fast Response
-    else Cache Miss
-        RetrievalWorkflow->>LLM: Decompose Query & Generate HyDE
-        LLM-->>RetrievalWorkflow: QueryBundle
-        RetrievalWorkflow->>Qdrant: Retrieve Context
-        Qdrant-->>RetrievalWorkflow: Raw Nodes
-        
-        loop CoT Relevance Judge (Max 2)
-            RetrievalWorkflow->>LLM: Judge Relevance
-            LLM-->>RetrievalWorkflow: Verdict
-            opt If Irrelevant
-                RetrievalWorkflow->>LLM: Refine Query
-            end
-        end
-
-        RetrievalWorkflow->>LlamaIndex: Rerank & LongContextReorder
-        RetrievalWorkflow->>LLM: Generate Final Answer
-        LLM-->>RetrievalWorkflow: Final Answer
-        RetrievalWorkflow->>SemanticCache: Set Cache
-        RetrievalWorkflow-->>User: Synthesized Answer
-    end
-```
-
 ## 📈 Benchmarks
 
 | Metric | Basic RAG | Project Aether | Impact |
