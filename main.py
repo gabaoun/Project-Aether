@@ -2,7 +2,6 @@ import os
 import asyncio
 import argparse
 import uvicorn
-from qdrant_client import QdrantClient
 from src.pipeline.ingestion import IngestionWorkflow
 from src.pipeline.retrieval import RetrievalWorkflow, StreamingStatusEvent
 from src.config.settings import settings
@@ -18,22 +17,17 @@ except ImportError:
 
 async def run_cli():
     """Runs the project in interactive CLI mode."""
-    qdrant_client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
-    
-    ingestion_wf = IngestionWorkflow(
-        qdrant_client=qdrant_client, 
-        collection_name=settings.qdrant_collection
-    )
+    ingestion_wf = IngestionWorkflow()
     
     data_dir = settings.data_dir
     if os.path.exists(data_dir) and os.listdir(data_dir):
         logger.info(f"Starting ingestion from {data_dir}...")
-        index = await ingestion_wf.run(input_dir=data_dir)
+        chroma_service = await ingestion_wf.run(input_dir=data_dir)
     else:
         logger.error(f"Data directory '{data_dir}' is empty or missing. Add documents and restart.")
         return
 
-    retrieval_wf = RetrievalWorkflow(index=index)
+    retrieval_wf = RetrievalWorkflow(chroma_service=chroma_service)
     
     while True:
         try:
