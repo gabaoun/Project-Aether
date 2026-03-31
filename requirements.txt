@@ -16,7 +16,6 @@ pydantic>=2.0
 pydantic-settings
 python-dotenv
 tiktoken
-arize-phoenix
 sentence-transformers
 FlagEmbedding
 tenacity
