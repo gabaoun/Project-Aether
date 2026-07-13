@@ -1,15 +1,16 @@
 # Project Aether: RAG Pipeline with Event-Driven Workflows
 
 ## Overview
-Project Aether is a Retrieval-Augmented Generation (RAG) system built with Python and LlamaIndex. It implements a document ingestion and retrieval pipeline using an event-driven architecture (Workflows) and provides both a CLI and a FastAPI interface.
+Project Aether is a high-performance Retrieval-Augmented Generation (RAG) search engine built with Python and LlamaIndex. It features an event-driven orchestration pipeline (Workflows), semantic caching, a data compliance layer, and interfaces via both a CLI and a FastAPI service.
 
 ## Features
-- **FastAPI Layer:** A RESTful API to interact with the RAG engine.
-- **Event-Driven Ingestion:** Processes documents through a series of discrete steps.
-- **Advanced Retrieval:** Implements HyDE, query refinement loops, and relevance judgment.
-- **Semantic Caching:** Uses Redis to store and retrieve previously generated answers.
-- **Degraded Mode:** Gracefully handles missing Redis/Qdrant by logging warnings and continuing if possible.
-- **Resiliency:** Uses `tenacity` for exponential backoff retries.
+- **FastAPI Interface:** A RESTful API layer providing low-latency endpoints to interact with the RAG engine.
+- **Event-Driven Ingestion:** Orchestrates asynchronous ingestion workflows to process and index documents.
+- **Advanced Retrieval:** Implements HyDE (Hypothetical Document Embeddings), query refinement loops, and relevance judgment steps.
+- **Semantic Caching:** Utilizes a Redis caching layer (with HNSW index configurations) to perform fast semantic lookups and optimize LLM token consumption.
+- **PII Masking Layer:** A dedicated privacy-centric layer designed to automatically detect and mask sensitive user information (PII) before ingestion.
+- **Resilient Degraded Mode:** Automatically detects connection failures to external vector stores or caches, adjusting behavior gracefully to prevent application crashes.
+- **Fault Tolerance:** Built-in retry mechanisms using exponential backoff to handle transient API issues.
 
 ## Run CLI
 To start the interactive CLI mode:
@@ -45,9 +46,9 @@ curl -X POST http://localhost:8000/query \
 - **Mocked Testing:** The project includes unit tests for all layers (ingestion, retrieval, splitter, and API) with extensive mocking to ensure tests run in isolation.
 - **Degraded Mode Infrastructure:** The system detects connection failures to Redis or Qdrant and adjusts its behavior (e.g., skipping cache) instead of crashing.
 
-## Limitations
-- **Regex-based PII:** Basic regular expression masking for emails and phone numbers.
-- **Simplified Cache:** Uses exact query string matching for Redis keys.
+## Core Configurations
+- **Regex-based PII Masker:** Employs high-speed regular expression processing to sanitize email addresses and phone numbers.
+- **Semantic Caching Layer:** Leverages Redis key-value stores to bypass heavy LLM computation for previously processed semantic queries.
 
 ## Getting Started
 
