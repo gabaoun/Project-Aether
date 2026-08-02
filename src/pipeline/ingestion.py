@@ -1,6 +1,9 @@
 
+from typing import Any
+
 from llama_index.core import Document
 from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.schema import BaseNode
 from llama_index.core.workflow import (
     Event,
     StartEvent,
@@ -23,16 +26,16 @@ class DocumentsLoadedEvent(Event):
     documents: list[Document]
 
 class NodesCreatedEvent(Event):
-    nodes: list[Document]
+    nodes: list[BaseNode]
 
 class MetadataEnrichedEvent(Event):
-    nodes: list[Document]
+    nodes: list[BaseNode]
 
 class IngestionWorkflow(Workflow):
     """
     Workflow for ingesting, chunking, and indexing documents using Chroma Cloud.
     """
-    def __init__(self, **kwargs: dict) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.chroma_service = ChromaService()
         self.node_parser = SentenceSplitter(
@@ -71,7 +74,7 @@ class IngestionWorkflow(Workflow):
 
     @step
     async def chunk_documents(self, ev: DocumentsLoadedEvent) -> NodesCreatedEvent:
-        nodes = list(self.node_parser.get_nodes_generator(ev.documents))
+        nodes = await self.node_parser.aget_nodes_from_documents(ev.documents)
         logger.info(f"[INGESTION] Created {len(nodes)} semantic nodes.")
         return NodesCreatedEvent(nodes=nodes)
 

@@ -1,4 +1,6 @@
 
+from typing import Any
+
 from llama_index.core import QueryBundle
 from llama_index.core.postprocessor import LongContextReorder
 from llama_index.core.schema import NodeWithScore
@@ -42,7 +44,7 @@ class RetrievalWorkflow(Workflow):
     """
     Workflow for RAG retrieval with query transformation, reranking, and cache checks using Chroma Cloud.      
     """
-    def __init__(self, chroma_service: ChromaService, reranker=None, **kwargs: dict) -> None:
+    def __init__(self, chroma_service: ChromaService, reranker=None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.chroma_service = chroma_service
         self.llm = OpenAI(model="gpt-4o", api_key=settings.openai_api_key)

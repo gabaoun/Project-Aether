@@ -122,12 +122,15 @@ class ChromaService:
                 query_texts=[query],
                 n_results=n_results,
                 include=["documents", "metadatas", "distances"],
-                # groupby is a feature of Chroma Cloud
-                # group_by and group_limit are the expected parameters
-                group_by="source_doc_id",
-                group_limit=1
+                # groupby is a feature of Chroma Cloud - the local SDK's type
+                # stub doesn't declare these params, but Cloud passes them
+                # through server-side; the except below handles SDKs that don't.
+                group_by="source_doc_id",  # type: ignore[call-arg]
+                group_limit=1  # type: ignore[call-arg]
             )
-            
+            assert results['ids'] is not None and results['documents'] is not None
+            assert results['metadatas'] is not None and results['distances'] is not None
+
             processed_results = []
             for i in range(len(results['ids'][0])):
                 processed_results.append({
@@ -146,10 +149,12 @@ class ChromaService:
                 n_results=n_results * 2,
                 include=["documents", "metadatas", "distances"]
             )
-            
+            assert results['ids'] is not None and results['documents'] is not None
+            assert results['metadatas'] is not None and results['distances'] is not None
+
             seen_docs = {}
             processed_results = []
-            
+
             for i in range(len(results['ids'][0])):
                 doc_id = results['ids'][0][i]
                 metadata = results['metadatas'][0][i]

@@ -25,16 +25,16 @@ def process_ingestion(job_id: str):
     try:
         logger.info(f"Starting ingestion workflow for job {job_id}")
         workflow = IngestionWorkflow()
-        
-        # Run the workflow
-        # Note: workflow.run is async, so we need to run it in an event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # This shouldn't happen in a standard RQ worker but just in case
-            future = asyncio.ensure_future(workflow.run(input_dir=settings.data_dir))
-            loop.run_until_complete(future)
-        else:
-            asyncio.run(workflow.run(input_dir=settings.data_dir))
+
+        # workflow.run() calls asyncio.create_task() internally, so it must be
+        # awaited from inside an already-running loop - passing it directly to
+        # asyncio.run() evaluates it before that loop exists and raises
+        # "RuntimeError: no running event loop". Wrapping it in a coroutine
+        # that awaits it from inside asyncio.run() fixes this.
+        async def _run_workflow() -> None:
+            await workflow.run(input_dir=settings.data_dir)
+
+        asyncio.run(_run_workflow())
 
         job.status = "COMPLETED"
         logger.info(f"Ingestion job {job_id} completed successfully.")

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
@@ -90,7 +91,9 @@ async def query_docs(request: QueryRequest):
         raise HTTPException(status_code=503, detail="Search index is not initialized.")
     
     try:
-        result = await retrieval_wf.run(query=request.query)
+        # RetrievalWorkflow's final step always returns StopEvent(result={...}) -
+        # a dict - but Workflow.run()'s generic RunResultT is unbound in the stub.
+        result = cast(dict[str, Any], await retrieval_wf.run(query=request.query))
         return QueryResponse(
             answer=result["answer"],
             from_cache=result.get("from_cache", False)
