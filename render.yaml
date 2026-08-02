@@ -6,6 +6,13 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
     envVars:
+      # Pinned to match what CI actually verifies this requirements.txt
+      # against. Render defaults to the latest Python (3.14 as of this
+      # writing), which lacks prebuilt wheels for a pandas version this
+      # dependency chain needs, forcing a from-source build that fails
+      # to compile at all on that toolchain.
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: GROQ_API_KEY
         sync: false
       - key: CHROMA_API_KEY
