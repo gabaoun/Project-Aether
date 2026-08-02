@@ -1,29 +1,47 @@
-llama-index>=0.11.0
-llama-index-core
-llama-index-readers-file
-llama-index-embeddings-huggingface
-llama-index-llms-groq
-llama-index-postprocessor-flag-embedding-reranker
-llama-index-vector-stores-qdrant
-qdrant-client
-chromadb>=0.6.0
-redis
-sqlalchemy
-psycopg2-binary
-rq
-alembic
-pydantic>=2.0
-pydantic-settings
-python-dotenv
-tiktoken
-sentence-transformers
-FlagEmbedding
-tenacity
-numpy
-pytest
-pytest-asyncio
-pytest-mock
-mock
-fastapi
-uvicorn
-httpx
+# CPU-only torch build. Plain "torch" from PyPI on Linux drags in the full
+# CUDA stack (cuda-toolkit, nvidia-*, triton) as install_requires - multiple
+# GB of unused GPU deps on a CPU-only Render free-tier service. This index
+# ships a torch build with no CUDA dependency at all.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# All versions below are pinned to one mutually-compatible, verified-resolvable
+# set (checked via `pip install --dry-run --only-binary=:all:`) so pip's
+# resolver doesn't have to backtrack through hundreds of candidate versions
+# on every fresh build.
+torch==2.13.0+cpu
+llama-index-core==0.14.23
+llama-index-readers-file==0.6.0
+llama-index-embeddings-huggingface==0.7.0
+llama-index-llms-groq==0.5.0
+llama-index-postprocessor-flag-embedding-reranker==0.5.0
+# Pinned below 1.0 deliberately: 1.x dropped the "inference" extra that
+# llama-index-embeddings-huggingface still requests, which otherwise prints
+# a harmless but noisy "does not provide the extra 'inference'" warning on
+# every install. 0.36.2 is the newest release that still has it.
+huggingface-hub==0.36.2
+sentence-transformers==5.6.1
+FlagEmbedding==1.4.0
+chromadb==1.5.9
+# Only used by scripts/migrate_to_chroma.py (the one-time Qdrant -> Chroma
+# Cloud migration). The live app never imports the llama-index Qdrant
+# vector-store wrapper - that package's only release requires
+# llama-index-core<0.11, incompatible with the version pinned above.
+qdrant-client==1.18.0
+redis==8.1.0
+sqlalchemy==2.0.51
+psycopg2-binary==2.9.12
+rq==2.10.0
+alembic==1.18.5
+pydantic==2.13.4
+pydantic-settings==2.14.2
+python-dotenv==1.2.2
+tiktoken==0.13.0
+tenacity==9.1.4
+numpy==2.5.1
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-mock==3.15.1
+mock==5.2.0
+fastapi==0.141.1
+uvicorn==0.52.1
+httpx==0.28.1
