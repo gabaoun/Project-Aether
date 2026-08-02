@@ -3,7 +3,12 @@ services:
     name: project-aether
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    # The second command pre-warms chromadb's bundled default embedding
+    # model (all-MiniLM-L6-v2 ONNX, ~79MB) into its on-disk cache. Without
+    # this, the first live query downloads+loads it cold inside the
+    # request handler on the 512MB runtime instance, which raced against
+    # the rest of the app's memory footprint and OOM-killed the process.
+    buildCommand: pip install -r requirements.txt && python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFunction; DefaultEmbeddingFunction()(['warmup'])"
     startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
     envVars:
       # Pinned to match what CI actually verifies this requirements.txt
