@@ -1,29 +1,32 @@
-from typing import List
+
 from llama_index.core import Document
+from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.workflow import (
-    Workflow,
     Event,
     StartEvent,
     StopEvent,
+    Workflow,
     step,
 )
 from tenacity import retry, stop_after_attempt, wait_exponential
-from llama_index.core.node_parser import SentenceSplitter
+
 from src.config.settings import settings
-from src.utils.token_counter import TokenCounter
 from src.core.pii import PIIMasker
-from src.services.redis import SemanticCache
-from src.services.chroma import ChromaService
-from src.utils.logger import logger
 from src.models.exceptions import IngestionException
+from src.services.chroma import ChromaService
+from src.services.redis import SemanticCache
+from src.utils.logger import logger
+from src.utils.token_counter import TokenCounter
+
+
 class DocumentsLoadedEvent(Event):
-    documents: List[Document]
+    documents: list[Document]
 
 class NodesCreatedEvent(Event):
-    nodes: List[Document]
+    nodes: list[Document]
 
 class MetadataEnrichedEvent(Event):
-    nodes: List[Document]
+    nodes: list[Document]
 
 class IngestionWorkflow(Workflow):
     """
@@ -112,7 +115,7 @@ class IngestionWorkflow(Workflow):
             logger.info(f"[INGESTION] Indexed {len(ev.nodes)} nodes in Chroma Cloud.")
             self.cache.invalidate_cache()
             return StopEvent(result=self.chroma_service)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"[INGESTION] Failed to index nodes in Chroma: {e}")
             raise IngestionException(f"Failed to persist nodes: {e}")
 

@@ -1,24 +1,25 @@
-from typing import List, Union
+
 from llama_index.core import QueryBundle
+from llama_index.core.postprocessor import LongContextReorder
 from llama_index.core.schema import NodeWithScore
 from llama_index.core.workflow import (
-    Workflow,
+    Context,
     Event,
     StartEvent,
     StopEvent,
+    Workflow,
     step,
-    Context,
 )
-from llama_index.core.postprocessor import LongContextReorder
 from llama_index.llms.openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
+from src.models.exceptions import RetrievalException
 from src.services.chroma import ChromaService
 from src.services.redis import SemanticCache
-from src.utils.token_counter import TokenCounter
 from src.utils.logger import logger
-from src.models.exceptions import RetrievalException
+from src.utils.token_counter import TokenCounter
+
 
 class StreamingStatusEvent(Event):
     status: str
@@ -28,13 +29,13 @@ class QueryTransformedEvent(Event):
     loops: int
 
 class ContextRetrievedEvent(Event):
-    nodes: List[NodeWithScore]
+    nodes: list[NodeWithScore]
     query_bundle: QueryBundle
     loops: int
 
 class RelevanceJudgedEvent(Event):
     is_relevant: bool
-    nodes: List[NodeWithScore]
+    nodes: list[NodeWithScore]
     query_bundle: QueryBundle
 
 class RetrievalWorkflow(Workflow):
@@ -52,7 +53,9 @@ class RetrievalWorkflow(Workflow):
 
     def _build_reranker(self):
         try:
-            from llama_index.postprocessor.flag_embedding_reranker import FlagEmbeddingReranker
+            from llama_index.postprocessor.flag_embedding_reranker import (
+                FlagEmbeddingReranker,
+            )
             return FlagEmbeddingReranker(
                 model="BAAI/bge-reranker-v2-m3",
                 top_n=5
@@ -68,7 +71,7 @@ class RetrievalWorkflow(Workflow):
         return response
 
     @step
-    async def process_start(self, ctx: Context, ev: StartEvent) -> Union[QueryTransformedEvent, StopEvent, StreamingStatusEvent]:
+    async def process_start(self, ctx: Context, ev: StartEvent) -> QueryTransformedEvent | StopEvent | StreamingStatusEvent:
         query_str = ev.get("query")
         if not query_str:
             raise RetrievalException("query must be provided in StartEvent", status_code=400)
@@ -86,7 +89,7 @@ class RetrievalWorkflow(Workflow):
         try:
             hyde_doc = await self._call_llm_with_retry(hyde_prompt)
             custom_embeddings = [query_str, hyde_doc.text]
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"[RETRIEVAL] Error generating HyDE: {e}")
             custom_embeddings = [query_str]
             
@@ -94,7 +97,7 @@ class RetrievalWorkflow(Workflow):
         return QueryTransformedEvent(query_bundle=query_bundle, loops=0)
 
     @step
-    async def retrieve_context(self, ctx: Context, ev: QueryTransformedEvent) -> Union[ContextRetrievedEvent, StreamingStatusEvent]:
+    async def retrieve_context(self, ctx: Context, ev: QueryTransformedEvent) -> ContextRetrievedEvent | StreamingStatusEvent:
         ctx.send_event(StreamingStatusEvent(status="Retrieving context from Chroma Cloud..."))
         
         # Using Chroma Cloud Hybrid Search
@@ -116,7 +119,7 @@ class RetrievalWorkflow(Workflow):
         return ContextRetrievedEvent(nodes=nodes, query_bundle=ev.query_bundle, loops=ev.loops)
 
     @step
-    async def judge_relevance(self, ctx: Context, ev: ContextRetrievedEvent) -> Union[RelevanceJudgedEvent, QueryTransformedEvent, StreamingStatusEvent]:
+    async def judge_relevance(self, ctx: Context, ev: ContextRetrievedEvent) -> RelevanceJudgedEvent | QueryTransformedEvent | StreamingStatusEvent:
         if ev.loops >= 1 or not ev.nodes:
             return RelevanceJudgedEvent(is_relevant=True, nodes=ev.nodes, query_bundle=ev.query_bundle)
 
@@ -132,7 +135,7 @@ class RetrievalWorkflow(Workflow):
         try:
             response = await self._call_llm_with_retry(judge_prompt)
             is_relevant = "YES" in response.text.upper()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"[RETRIEVAL] Error judging relevance: {e}")
             is_relevant = True
         
@@ -143,13 +146,13 @@ class RetrievalWorkflow(Workflow):
                 new_query_resp = await self._call_llm_with_retry(refine_prompt)
                 new_bundle = QueryBundle(query_str=new_query_resp.text)
                 return QueryTransformedEvent(query_bundle=new_bundle, loops=ev.loops + 1)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
                 logger.error(f"[RETRIEVAL] Error refining query: {e}")
             
         return RelevanceJudgedEvent(is_relevant=True, nodes=ev.nodes, query_bundle=ev.query_bundle)
 
     @step
-    async def post_process(self, ctx: Context, ev: RelevanceJudgedEvent) -> Union[StopEvent, StreamingStatusEvent]:
+    async def post_process(self, ctx: Context, ev: RelevanceJudgedEvent) -> StopEvent | StreamingStatusEvent:
         if not ev.nodes:
             return StopEvent(result={"answer": "No relevant context found.", "source_nodes": [], "from_cache": False})
 
@@ -160,7 +163,7 @@ class RetrievalWorkflow(Workflow):
                 final_nodes = self.reorder.postprocess_nodes(reranked_nodes)
             else:
                 final_nodes = self.reorder.postprocess_nodes(ev.nodes)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"[RETRIEVAL] Post-processing error: {e}")
             final_nodes = ev.nodes
         
@@ -173,7 +176,7 @@ class RetrievalWorkflow(Workflow):
             answer = response.text
             self.cache.set_cache(ev.query_bundle.query_str, answer)
             return StopEvent(result={"answer": answer, "source_nodes": final_nodes, "from_cache": False})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"[RETRIEVAL] Answer generation failed: {e}")
             raise RetrievalException(f"Failed to generate answer: {e}")
 

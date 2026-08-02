@@ -1,8 +1,11 @@
 import asyncio
+
 from qdrant_client import QdrantClient
-from src.services.chroma import ChromaService
+
 from src.config.settings import settings
+from src.services.chroma import ChromaService
 from src.utils.logger import logger
+
 
 async def migrate():
     logger.info("Starting migration from Qdrant to Chroma Cloud...")
@@ -58,7 +61,7 @@ async def migrate():
             
         logger.info("Migration complete!")
         
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Migration failed: {e}")
 
 if __name__ == "__main__":

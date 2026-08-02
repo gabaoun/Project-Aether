@@ -1,7 +1,9 @@
 import redis
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
 from src.config.settings import settings
 from src.utils.logger import logger
+
 
 class SemanticCache:
     """
@@ -30,7 +32,7 @@ class SemanticCache:
             return None
         try:
             return self.redis_client.get(f"cache:{query}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"Cache retrieval error: {e}")
             return None
 
@@ -39,7 +41,7 @@ class SemanticCache:
             return
         try:
             self.redis_client.setex(f"cache:{query}", 3600, answer)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"Cache storage error: {e}")
 
     def invalidate_cache(self):
@@ -50,5 +52,5 @@ class SemanticCache:
             if keys:
                 self.redis_client.delete(*keys)
             logger.info("Semantic cache invalidated.")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"Cache invalidation error: {e}")

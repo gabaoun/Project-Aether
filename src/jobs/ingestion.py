@@ -1,9 +1,11 @@
 import asyncio
+
+from src.config.settings import settings
 from src.db.session import SessionLocal
 from src.models.db import IngestionJob
 from src.pipeline.ingestion import IngestionWorkflow
 from src.utils.logger import logger
-from src.config.settings import settings
+
 
 def process_ingestion(job_id: str):
     """
@@ -36,7 +38,7 @@ def process_ingestion(job_id: str):
 
         job.status = "COMPLETED"
         logger.info(f"Ingestion job {job_id} completed successfully.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Ingestion job {job_id} failed: {e}")
         job.status = "FAILED"
     finally:

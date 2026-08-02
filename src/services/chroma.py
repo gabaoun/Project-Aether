@@ -1,10 +1,13 @@
-import chromadb
-from chromadb.config import Settings
-from chromadb.api.models.Collection import Collection
-from typing import List, Dict, Any
 import uuid
+from typing import Any
+
+import chromadb
+from chromadb.api.models.Collection import Collection
+from chromadb.config import Settings
+
 from src.config.settings import settings
 from src.utils.logger import logger
+
 
 class ChromaService:
     def __init__(self):
@@ -36,7 +39,7 @@ class ChromaService:
             metadata=metadata
         )
 
-    def chunk_text(self, text: str, max_bytes: int = 16000) -> List[str]:
+    def chunk_text(self, text: str, max_bytes: int = 16000) -> list[str]:
         """
         Line-based chunking strategy for documents > 16 KiB.
         """
@@ -70,7 +73,7 @@ class ChromaService:
             
         return chunks
 
-    async def upsert_documents(self, documents: List[Dict[str, Any]]):
+    async def upsert_documents(self, documents: list[dict[str, Any]]):
         """
         Upserts documents into Chroma Cloud.
         Each document should have 'id', 'text', and 'metadata'.
@@ -105,7 +108,7 @@ class ChromaService:
             )
             logger.info(f"Upserted {len(ids)} chunks to Chroma collection '{self.collection_name}'.")
 
-    async def hybrid_search(self, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
+    async def hybrid_search(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:
         """
         Performs hybrid search (dense + sparse) with RRF and GroupBy deduplication.
         """
@@ -135,7 +138,7 @@ class ChromaService:
                 })
             return processed_results
             
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.warning(f"Chroma Cloud specialized query failed, falling back to manual GroupBy: {e}")
             # Fallback to standard query if SDK doesn't support group_by yet or it's not a Cloud collection
             results = collection.query(

@@ -1,5 +1,6 @@
 import redis
 from rq import Queue
+
 from src.config.settings import settings
 
 # We don't initialize connection here directly to avoid side effects on import

@@ -1,11 +1,13 @@
+import uuid
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, AsyncMock
-import uuid
+
+import src.db.session
 
 # Mock dependencies before importing app
 import src.infra.queue
-import src.db.session
 
 # We mock the connection and session at the module level or within fixtures
 from src.api.app import app

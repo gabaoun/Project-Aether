@@ -1,6 +1,8 @@
 from rq import Worker
+
 from src.infra.queue import get_queue, get_redis_connection
 from src.utils.logger import logger
+
 
 def run_worker():
     redis_conn = get_redis_connection()

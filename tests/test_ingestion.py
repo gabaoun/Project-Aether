@@ -1,8 +1,11 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from llama_index.core.schema import Document
-from src.pipeline.ingestion import IngestionWorkflow, DocumentsLoadedEvent
 from llama_index.core.workflow import StartEvent
+
+from src.pipeline.ingestion import DocumentsLoadedEvent, IngestionWorkflow
+
 
 @pytest.mark.asyncio
 async def test_load_documents_and_mask_pii(mocker):

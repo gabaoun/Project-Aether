@@ -1,5 +1,7 @@
 import tiktoken
+
 from src.utils.logger import logger
+
 
 class TokenCounter:
     """

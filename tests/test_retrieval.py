@@ -1,7 +1,10 @@
-import pytest
 from unittest.mock import MagicMock
-from src.pipeline.retrieval import RetrievalWorkflow, QueryTransformedEvent
+
+import pytest
 from llama_index.core.workflow import StartEvent, StopEvent
+
+from src.pipeline.retrieval import QueryTransformedEvent, RetrievalWorkflow
+
 
 @pytest.mark.asyncio
 async def test_retrieval_cache_hit(mocker):

@@ -1,14 +1,16 @@
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
-from src.services.chroma import ChromaService
-from src.pipeline.retrieval import RetrievalWorkflow
-from src.config.settings import settings
-from src.utils.logger import logger
-from src.db.session import get_db
-from src.models.db import IngestionJob
-from src.infra.queue import get_queue
 from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+from src.config.settings import settings
+from src.db.session import get_db
+from src.infra.queue import get_queue
+from src.models.db import IngestionJob
+from src.pipeline.retrieval import RetrievalWorkflow
+from src.services.chroma import ChromaService
+from src.utils.logger import logger
 
 # Global variables for chroma service and workflow
 chroma_service = None
@@ -23,7 +25,7 @@ async def lifespan(app: FastAPI):
         chroma_service = ChromaService()
         retrieval_wf = RetrievalWorkflow(chroma_service=chroma_service)
         logger.info("API Startup: Chroma Cloud retrieval ready.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Startup failed: {e}")
         logger.warning("API starting in degraded mode due to infrastructure error.")
     
@@ -67,7 +69,7 @@ async def ingest_docs(db: Session = Depends(get_db)):
         
         logger.info(f"Ingestion job {job.id} enqueued.")
         return IngestResponse(job_id=str(job.id))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Failed to enqueue ingestion job: {e}")
         raise HTTPException(status_code=500, detail="Failed to trigger ingestion.")
 
@@ -80,12 +82,10 @@ async def get_job_status(job_id: str, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
     
-    return JobStatusResponse(id=str(job.id), status=job.status)
+    return JobStatusResponse(id=str(job.id), status=job.status or "UNKNOWN")
 
 @app.post("/query", response_model=QueryResponse)
 async def query_docs(request: QueryRequest):
-    global retrieval_wf
-    
     if not retrieval_wf:
         raise HTTPException(status_code=503, detail="Search index is not initialized.")
     
@@ -95,7 +95,7 @@ async def query_docs(request: QueryRequest):
             answer=result["answer"],
             from_cache=result.get("from_cache", False)
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Query failed: {request.query} - Error: {e}")
         detail = str(e) if settings.debug else "An error occurred during query processing."
         raise HTTPException(status_code=500, detail=detail)

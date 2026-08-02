@@ -7,8 +7,6 @@ class ProjectAetherException(Exception):
 
 class IngestionException(ProjectAetherException):
     """Exception raised during document ingestion."""
-    pass
 
 class RetrievalException(ProjectAetherException):
     """Exception raised during query retrieval."""
-    pass

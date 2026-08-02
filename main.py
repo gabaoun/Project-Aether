@@ -1,12 +1,14 @@
-import os
-import asyncio
 import argparse
+import asyncio
+import os
+
 import uvicorn
+from llama_index.core import set_global_handler
+
+from src.config.settings import settings
 from src.pipeline.ingestion import IngestionWorkflow
 from src.pipeline.retrieval import RetrievalWorkflow, StreamingStatusEvent
-from src.config.settings import settings
 from src.utils.logger import logger
-from llama_index.core import set_global_handler
 
 # Optional Observability
 try:
@@ -52,7 +54,7 @@ async def run_cli():
                 print(f"- {node.metadata.get('file_name', 'Unknown')}")
         except KeyboardInterrupt:
             break
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
             logger.error(f"Error: {e}")
 
 def run_api():
