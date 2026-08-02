@@ -12,7 +12,7 @@ from llama_index.core.workflow import (
     Workflow,
     step,
 )
-from llama_index.llms.openai import OpenAI
+from llama_index.llms.groq import Groq
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
@@ -47,11 +47,11 @@ class RetrievalWorkflow(Workflow):
     def __init__(self, chroma_service: ChromaService, reranker=None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.chroma_service = chroma_service
-        self.llm = OpenAI(model="gpt-4o", api_key=settings.openai_api_key)
+        self.llm = Groq(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key)
         self.reranker = reranker or self._build_reranker()
         self.reorder = LongContextReorder()
         self.cache = SemanticCache()
-        self.token_counter = TokenCounter(model_name="gpt-4o")
+        self.token_counter = TokenCounter(model_name="llama-3.3-70b-versatile")
 
     def _build_reranker(self):
         try:

@@ -27,4 +27,11 @@ class TokenCounter:
         in_tokens = self.count_tokens(input_text)
         out_tokens = self.count_tokens(output_text)
         cost = (in_tokens / 1_000_000) * self.cost_per_1m_input + (out_tokens / 1_000_000) * self.cost_per_1m_output
-        logger.info(f"[TOKEN_OPT] [{operation}] Cost: ${cost:.6f} | Tokens: {in_tokens} in / {out_tokens} out")
+        # Token counts use tiktoken as a cross-provider approximation (the
+        # actual LLM in use, Groq, has its own tokenizer and is currently
+        # free-tier - "cost" here is an OpenAI-equivalent estimate, not a
+        # real charge.
+        logger.info(
+            f"[TOKEN_OPT] [{operation}] Est. OpenAI-equivalent cost: ${cost:.6f} | "
+            f"Tokens (approx.): {in_tokens} in / {out_tokens} out"
+        )

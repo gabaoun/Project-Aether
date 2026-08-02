@@ -86,8 +86,8 @@ class IngestionWorkflow(Workflow):
 
     @step
     async def enrich_metadata(self, ev: NodesCreatedEvent) -> MetadataEnrichedEvent:
-        from llama_index.llms.openai import OpenAI
-        llm = OpenAI(model="gpt-4o-mini", api_key=settings.openai_api_key)
+        from llama_index.llms.groq import Groq
+        llm = Groq(model="llama-3.1-8b-instant", api_key=settings.groq_api_key)
         
         enriched_nodes = []
         for node in ev.nodes:

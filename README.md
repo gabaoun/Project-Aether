@@ -34,7 +34,7 @@ Aether is served through a **FastAPI** REST interface, an interactive **CLI**, a
 | Persistence        | PostgreSQL 15 + SQLAlchemy (job/document records)           |
 | Embeddings         | `BAAI/bge-small-en-v1.5` (HuggingFace)                      |
 | Reranker           | `BAAI/bge-reranker-v2-m3` (FlagEmbedding)                   |
-| LLM                | OpenAI GPT-4o (retrieval), GPT-4o-mini (metadata enrichment)|
+| LLM                | Groq (Llama 3.3 70B for retrieval, Llama 3.1 8B for metadata enrichment) |
 | Config             | Pydantic v2 / pydantic-settings                             |
 | Resilience         | tenacity (exponential backoff)                              |
 | Observability      | Arize Phoenix (optional)                                    |
@@ -66,7 +66,7 @@ Aether is served through a **FastAPI** REST interface, an interactive **CLI**, a
 └────────────┘   └───────────────┘   └─────────────────┘            │
                                                                     ▼
                                                           ┌──────────────────┐
-                                                          │  GPT-4o answer   │
+                                                          │  Groq answer     │
                                                           │  (+ sources)     │
                                                           └──────────────────┘
 ```
@@ -85,7 +85,7 @@ relevance judgment → refine query & re-search (loop)
    ▼
 cross-encoder rerank → LongContextReorder
    ▼
-GPT-4o generation + token/cost accounting
+Groq generation + token/cost accounting
    ▼
 answer (+ cache for future identical queries)
 ```
@@ -127,7 +127,7 @@ Project-Aether/
 
 - Docker & Docker Compose
 - Python 3.11+
-- OpenAI API Key
+- Groq API Key (free tier)
 - Chroma Cloud credentials (host, tenant, database, API key)
 
 ### Installation
@@ -139,7 +139,7 @@ cd Project-Aether
 pip install -r requirements.txt
 
 cp .env.example .env
-# Set OPENAI_API_KEY, CHROMA_HOST, CHROMA_API_KEY, CHROMA_TENANT, CHROMA_DATABASE
+# Set GROQ_API_KEY, CHROMA_HOST, CHROMA_API_KEY, CHROMA_TENANT, CHROMA_DATABASE
 ```
 
 ### Running the Full Stack (Docker)
@@ -192,7 +192,7 @@ Copy `.env.example` to `.env` and adjust for your environment.
 
 | Variable                    | Default                    | Description                                          |
 | :-------------------------- | :------------------------- | :--------------------------------------------------- |
-| `OPENAI_API_KEY`            | *(required)*               | OpenAI credentials for retrieval & enrichment LLMs.  |
+| `GROQ_API_KEY`              | *(required)*               | Groq credentials for retrieval & enrichment LLMs.    |
 | `CHROMA_HOST`               | `api.trychroma.com`        | Chroma Cloud host.                                   |
 | `CHROMA_API_KEY`            | *(required)*               | Chroma Cloud API key.                                |
 | `CHROMA_TENANT`             | *(required)*               | Chroma Cloud tenant ID.                              |

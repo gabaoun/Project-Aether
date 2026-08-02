@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     """
     Configuration settings for Project Aether.
     """
-    openai_api_key: str | None = None
+    groq_api_key: str | None = None
     # Only used by scripts/migrate_to_chroma.py (the one-time Qdrant -> Chroma
     # Cloud migration) - the live app runs on Chroma exclusively, see below.
     qdrant_url: str = "http://localhost:6333"

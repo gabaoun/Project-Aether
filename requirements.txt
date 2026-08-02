@@ -2,7 +2,7 @@ llama-index>=0.11.0
 llama-index-core
 llama-index-readers-file
 llama-index-embeddings-huggingface
-llama-index-llms-openai
+llama-index-llms-groq
 llama-index-postprocessor-flag-embedding-reranker
 llama-index-vector-stores-qdrant
 qdrant-client
