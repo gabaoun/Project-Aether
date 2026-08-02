@@ -13,7 +13,6 @@ class Settings(BaseSettings):
     qdrant_api_key: str | None = None
     qdrant_collection: str = "project_aether_docs"
 
-    chroma_host: str = "api.trychroma.com"
     chroma_api_key: str | None = None
     chroma_tenant: str = "d229b721-6e42-4d8a-800d-54f2d56651a6"
     chroma_database: str = "RAGabaoun"

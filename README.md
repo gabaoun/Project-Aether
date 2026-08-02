@@ -139,7 +139,7 @@ cd Project-Aether
 pip install -r requirements.txt
 
 cp .env.example .env
-# Set GROQ_API_KEY, CHROMA_HOST, CHROMA_API_KEY, CHROMA_TENANT, CHROMA_DATABASE
+# Set GROQ_API_KEY, CHROMA_API_KEY, CHROMA_TENANT, CHROMA_DATABASE
 ```
 
 ### Running the Full Stack (Docker)
@@ -193,7 +193,6 @@ Copy `.env.example` to `.env` and adjust for your environment.
 | Variable                    | Default                    | Description                                          |
 | :-------------------------- | :------------------------- | :--------------------------------------------------- |
 | `GROQ_API_KEY`              | *(required)*               | Groq credentials for retrieval & enrichment LLMs.    |
-| `CHROMA_HOST`               | `api.trychroma.com`        | Chroma Cloud host.                                   |
 | `CHROMA_API_KEY`            | *(required)*               | Chroma Cloud API key.                                |
 | `CHROMA_TENANT`             | *(required)*               | Chroma Cloud tenant ID.                              |
 | `CHROMA_DATABASE`           | `RAGabaoun`                | Chroma Cloud database name.                          |

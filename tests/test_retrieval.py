@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from llama_index.core.workflow import StartEvent, StopEvent
@@ -23,7 +23,7 @@ async def test_retrieval_cache_hit(mocker):
     assert isinstance(result, StopEvent)
     assert result.result["answer"] == "Cached Answer"
     assert result.result["from_cache"] is True
-    mock_ctx.send_event.assert_called()
+    mock_ctx.write_event_to_stream.assert_called()
 
 @pytest.mark.asyncio
 async def test_retrieval_query_transformation(mocker):
@@ -47,4 +47,29 @@ async def test_retrieval_query_transformation(mocker):
     assert isinstance(result, QueryTransformedEvent)
     assert result.query_bundle.query_str == "New Query"
     assert "Hypothetical document content" in result.query_bundle.custom_embedding_strs
-    mock_ctx.send_event.assert_called()
+    mock_ctx.write_event_to_stream.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_full_workflow_run_is_a_valid_event_graph(mocker):
+    # Exercises the real wf.run() entrypoint (not individual step methods
+    # directly, like the tests above). llama-index-workflows validates the
+    # step event graph on .run() - a step declaring it can produce an event
+    # type nothing consumes raises WorkflowValidationError before any step
+    # even executes. This is exactly the class of bug that shipped
+    # (StreamingStatusEvent declared in return-type unions but never
+    # actually returned) without the tests above ever catching it.
+    mock_chroma = MagicMock()
+    mock_chroma.hybrid_search = AsyncMock(return_value=[
+        {"id": "doc1_chunk_0", "content": "Gabriel has C++ experience.", "metadata": {}, "score": 0.1},
+    ])
+    wf = RetrievalWorkflow(chroma_service=mock_chroma, reranker=None)
+
+    mock_llm_response = MagicMock()
+    mock_llm_response.text = "YES - Gabriel has C++ experience."
+    mocker.patch.object(wf, '_call_llm_with_retry', return_value=mock_llm_response)
+
+    result = await wf.run(query="What C++ experience does Gabriel have?")
+
+    assert result["from_cache"] is False
+    assert "C++" in result["answer"]

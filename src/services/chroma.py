@@ -3,7 +3,6 @@ from typing import Any
 
 import chromadb
 from chromadb.api.models.Collection import Collection
-from chromadb.config import Settings
 
 from src.config.settings import settings
 from src.utils.logger import logger
@@ -11,12 +10,15 @@ from src.utils.logger import logger
 
 class ChromaService:
     def __init__(self):
-        self.client = chromadb.HttpClient(
-            host=settings.chroma_host,
+        # Chroma Cloud requires CloudClient specifically - it handles the
+        # real auth scheme (x-chroma-token) and HTTPS routing internally.
+        # A generic HttpClient with a hand-rolled Bearer header and no
+        # scheme/port (as this used to be) cannot reach the Cloud API at
+        # all ("Server disconnected without sending a response").
+        self.client = chromadb.CloudClient(
             tenant=settings.chroma_tenant,
             database=settings.chroma_database,
-            headers={"Authorization": f"Bearer {settings.chroma_api_key}"} if settings.chroma_api_key else None,
-            settings=Settings(allow_reset=True)
+            api_key=settings.chroma_api_key,
         )
         self.collection_name = settings.chroma_collection
 
