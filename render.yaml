@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: project-aether
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CHROMA_API_KEY
+        sync: false
+      - key: CHROMA_TENANT
+        value: d229b721-6e42-4d8a-800d-54f2d56651a6
+      - key: CHROMA_DATABASE
+        value: RAGabaoun
+      - key: CHROMA_COLLECTION
+        value: project_aether_docs
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: "6379"
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: REDIS_SSL
+        value: "true"
+      - key: LOG_LEVEL
+        value: INFO

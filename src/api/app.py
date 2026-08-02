@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, cast
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -34,12 +36,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Project Aether RAG API", lifespan=lifespan)
 
+_STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/ui", StaticFiles(directory=_STATIC_DIR, html=True), name="ui")
+
 class QueryRequest(BaseModel):
     query: str
 
 class QueryResponse(BaseModel):
     answer: str
     from_cache: bool
+    source_nodes: list[str] = []
 
 class IngestResponse(BaseModel):
     job_id: str
@@ -47,6 +53,10 @@ class IngestResponse(BaseModel):
 class JobStatusResponse(BaseModel):
     id: str
     status: str
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"message": "Project Aether API is running", "docs": "/docs", "ui": "/ui"}
 
 @app.get("/health")
 async def health():
@@ -94,9 +104,11 @@ async def query_docs(request: QueryRequest):
         # RetrievalWorkflow's final step always returns StopEvent(result={...}) -
         # a dict - but Workflow.run()'s generic RunResultT is unbound in the stub.
         result = cast(dict[str, Any], await retrieval_wf.run(query=request.query))
+        source_nodes = result.get("source_nodes", [])
         return QueryResponse(
             answer=result["answer"],
-            from_cache=result.get("from_cache", False)
+            from_cache=result.get("from_cache", False),
+            source_nodes=[n.metadata.get("file_name", "unknown") for n in source_nodes]
         )
     except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Query failed: {request.query} - Error: {e}")

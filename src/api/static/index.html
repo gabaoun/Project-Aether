@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Aether — Live Demo</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0f1115;
+    --panel: #161923;
+    --border: #2a2f3d;
+    --text: #e6e8ee;
+    --muted: #8b91a3;
+    --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+  main {
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  header h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  header a { color: var(--accent); }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  form { display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1;
+    background: #1e2230;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+  }
+  input[type=text]:focus { outline: 1px solid var(--accent); }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status { min-height: 1.2em; margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+  #answer {
+    margin-top: 14px;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    display: none;
+  }
+  #sources {
+    margin-top: 12px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    display: none;
+  }
+  .examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .examples button {
+    background: #1e2230;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+  }
+  footer { font-size: 0.78rem; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Project Aether</h1>
+    <p>Event-driven RAG engine, live. Ask it about Gabriel's background. Source on <a href="https://github.com/gabaoun/Project-Aether" target="_blank" rel="noopener">GitHub</a> &middot; raw API at <a href="/docs">/docs</a>.</p>
+  </header>
+  <div class="panel">
+    <form id="form">
+      <input id="input" type="text" placeholder="Ask about Gabriel's experience..." autocomplete="off" maxlength="300" required>
+      <button id="send" type="submit">Ask</button>
+    </form>
+    <div class="examples">
+      <button type="button" data-q="What C++ experience does Gabriel have?">C++ experience?</button>
+      <button type="button" data-q="What AI and RAG projects has Gabriel built?">AI/RAG projects?</button>
+      <button type="button" data-q="What is Gabriel's education background?">Education?</button>
+    </div>
+    <div id="status"></div>
+    <div id="answer"></div>
+    <div id="sources"></div>
+  </div>
+</main>
+<script>
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const statusEl = document.getElementById('status');
+  const answerEl = document.getElementById('answer');
+  const sourcesEl = document.getElementById('sources');
+
+  document.querySelectorAll('.examples button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      input.value = btn.dataset.q;
+      form.requestSubmit();
+    });
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const query = input.value.trim();
+    if (!query) return;
+
+    sendBtn.disabled = true;
+    answerEl.style.display = 'none';
+    sourcesEl.style.display = 'none';
+    statusEl.textContent = 'Thinking... (first request after idle can take ~30s to wake the server)';
+
+    try {
+      const res = await fetch('/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        statusEl.textContent = 'Error: ' + (data.detail || res.status);
+        return;
+      }
+
+      statusEl.textContent = data.from_cache ? 'Answered from semantic cache.' : 'Answered.';
+      answerEl.textContent = data.answer;
+      answerEl.style.display = 'block';
+
+      if (data.source_nodes && data.source_nodes.length) {
+        sourcesEl.textContent = 'Sources: ' + data.source_nodes.join(', ');
+        sourcesEl.style.display = 'block';
+      }
+    } catch (err) {
+      statusEl.textContent = 'Could not reach the API. If this is the first request in a while, the free-tier instance may still be waking up - try again shortly.';
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

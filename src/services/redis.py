@@ -15,6 +15,8 @@ class SemanticCache:
             self.redis_client = redis.Redis(
                 host=settings.redis_host,
                 port=settings.redis_port,
+                password=settings.redis_password,
+                ssl=settings.redis_ssl,
                 decode_responses=True,
                 socket_connect_timeout=2
             )

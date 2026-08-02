@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     
     redis_host: str = "localhost"
     redis_port: int = 6379
+    redis_password: str | None = None
+    redis_ssl: bool = False
     semantic_cache_threshold: float = 0.85
     
     database_url: str = "postgresql://user:password@postgres:5432/aether"

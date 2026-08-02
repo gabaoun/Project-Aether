@@ -199,6 +199,8 @@ Copy `.env.example` to `.env` and adjust for your environment.
 | `CHROMA_COLLECTION`         | `project_aether_docs`      | Vector collection name (dense + sparse config).      |
 | `REDIS_HOST`                | `localhost`                | Redis host for the semantic cache.                   |
 | `REDIS_PORT`                | `6379`                     | Redis port.                                          |
+| `REDIS_PASSWORD`            | *(none)*                   | Redis auth password (required by managed providers like Upstash). |
+| `REDIS_SSL`                 | `false`                    | Enable TLS (required by most managed Redis providers). |
 | `SEMANTIC_CACHE_THRESHOLD`  | `0.85`                     | Embedding similarity threshold for cache hits.       |
 | `DATABASE_URL`              | `postgresql://user:password@postgres:5432/aether` | Job persistence DSN.          |
 | `LOG_LEVEL`                 | `INFO`                     | Logging verbosity.                                   |
