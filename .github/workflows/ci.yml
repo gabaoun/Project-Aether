@@ -29,6 +29,11 @@ jobs:
           pip install ruff
           ruff check .
 
+      - name: Type check
+        run: |
+          pip install mypy
+          mypy src/ main.py
+
       - name: Run tests
         env:
           OPENAI_API_KEY: mock_key
