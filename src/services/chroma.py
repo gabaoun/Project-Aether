@@ -3,6 +3,10 @@ from typing import Any
 
 import chromadb
 from chromadb.api.models.Collection import Collection
+from chromadb.utils.embedding_functions.chroma_cloud_qwen_embedding_function import (
+    ChromaCloudQwenEmbeddingFunction,
+    ChromaCloudQwenEmbeddingModel,
+)
 
 from src.config.settings import settings
 from src.utils.logger import logger
@@ -21,24 +25,25 @@ class ChromaService:
             api_key=settings.chroma_api_key,
         )
         self.collection_name = settings.chroma_collection
+        # Chroma Cloud's own embedding API (server-side, just an httpx POST -
+        # no local model, no torch/onnxruntime). This is what actually needs
+        # to be passed as embedding_function; a plain metadata dict does
+        # nothing - without it, chromadb silently falls back to its bundled
+        # local ONNX MiniLM, which OOM-killed the 512MB Render instance the
+        # moment onnxruntime tried to load it.
+        self.embedding_function = ChromaCloudQwenEmbeddingFunction(
+            model=ChromaCloudQwenEmbeddingModel.QWEN3_EMBEDDING_0p6B,
+            task=None,
+        )
 
     def get_or_create_collection(self) -> Collection:
         """
-        Creates or retrieves a collection with dense and sparse embedding configuration.
+        Creates or retrieves a collection using Chroma Cloud's server-side Qwen embedding.
         """
-        # Define Schema for dense + sparse search as per Chroma Cloud docs
-        # Note: In latest chromadb SDK, we can pass schema in metadata or specialized params if supported.
-        # Following https://docs.trychroma.com/cloud/schema/sparse-vector-search.md
-        
-        metadata = {
-            "dense_model": "Chroma Cloud Qwen",
-            "sparse_model": "Chroma Cloud Splade",
-            "hnsw:space": "cosine"
-        }
-        
         return self.client.get_or_create_collection(
             name=self.collection_name,
-            metadata=metadata
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=self.embedding_function,
         )
 
     def chunk_text(self, text: str, max_bytes: int = 16000) -> list[str]:
