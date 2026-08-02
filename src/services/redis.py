@@ -1,5 +1,4 @@
 import redis
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 from src.config.settings import settings
 from src.utils.logger import logger
@@ -26,7 +25,6 @@ class SemanticCache:
             logger.warning("Redis not available. Semantic cache disabled (degraded mode).")
             self.enabled = False
             
-        self.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
         self.threshold = settings.semantic_cache_threshold
 
     def get_cache(self, query: str):
