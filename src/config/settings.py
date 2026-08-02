@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     
     phoenix_collector_endpoint: str = "http://localhost:6006"
     log_level: str = "INFO"
+
+    # BAAI/bge-reranker-v2-m3 is ~600M params (~2GB+ resident) - loading it
+    # eagerly at startup OOM-kills a 512MB free-tier host before the port
+    # ever opens. Off by default; enable on a host with enough headroom.
+    enable_reranker: bool = False
     
     data_dir: str = "./data"
     debug: bool = False

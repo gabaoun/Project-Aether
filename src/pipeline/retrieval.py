@@ -54,6 +54,9 @@ class RetrievalWorkflow(Workflow):
         self.token_counter = TokenCounter(model_name="llama-3.3-70b-versatile")
 
     def _build_reranker(self):
+        if not settings.enable_reranker:
+            logger.info("Reranker disabled via settings.enable_reranker. Skipping.")
+            return None
         try:
             from llama_index.postprocessor.flag_embedding_reranker import (
                 FlagEmbeddingReranker,
