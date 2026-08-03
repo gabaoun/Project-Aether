@@ -1,8 +1,10 @@
 # Project Aether
 
-Event-driven **Retrieval-Augmented Generation (RAG)** search engine built on Python and LlamaIndex Workflows. Aether ingests documents through a privacy-first pipeline (PII masking → chunking → LLM metadata enrichment → hybrid vector storage), then answers queries through a high-precision retrieval stack: semantic caching, HyDE, relevance judgment with refinement loops, and cross-encoder reranking.
+Event-driven **Retrieval-Augmented Generation (RAG)** search engine built on Python and LlamaIndex Workflows. Aether ingests documents through a privacy-first pipeline (PII masking → chunking → LLM metadata enrichment → hybrid vector storage), then answers queries through a high-precision retrieval stack: response caching, HyDE, relevance judgment with refinement loops, and an optional cross-encoder reranking stage.
 
 Aether is served through a **FastAPI** REST interface, an interactive **CLI**, and asynchronous **background workers**, with a resilient degraded mode that keeps the system operational when external infrastructure fails.
+
+**Live demo:** https://project-aether-izd2.onrender.com (`/docs` for OpenAPI, `/ui` for the chat UI) — free-tier Render deploy, query-only (ingestion runs as a local job against the same Chroma Cloud database).
 
 ---
 
@@ -10,8 +12,8 @@ Aether is served through a **FastAPI** REST interface, an interactive **CLI**, a
 
 - **Event-Driven Ingestion:** LlamaIndex `Workflow` orchestration — documents are loaded, masked for PII, chunked, metadata-enriched by an LLM, and indexed into Chroma Cloud asynchronously (RQ background jobs persisted in PostgreSQL).
 - **Hybrid Vector Search:** Chroma Cloud with dense (Qwen) + sparse (Splade) embeddings and RRF fusion for recall across both lexical and semantic matching.
-- **High-Precision Retrieval:** HyDE (Hypothetical Document Embeddings), multi-hop query refinement with relevance judgment, `LongContextReorder`, and `BAAI/bge-reranker-v2-m3` cross-encoder reranking.
-- **Semantic Caching:** Redis-backed cache keyed by embedding similarity (threshold-configurable, default `0.85`) that bypasses LLM computation for semantically identical queries — cutting token cost and latency.
+- **High-Precision Retrieval:** HyDE (Hypothetical Document Embeddings), multi-hop query refinement with relevance judgment, `LongContextReorder`, and an optional `BAAI/bge-reranker-v2-m3` cross-encoder reranking stage (`ENABLE_RERANKER`, off by default — the model is ~600M params and doesn't fit alongside everything else on a 512MB host).
+- **Response Caching:** Redis-backed cache keyed by exact query string that bypasses LLM computation on repeat questions — cutting token cost and latency.
 - **PII Compliance Layer:** Regex-based masker sanitizes emails and phone numbers before documents enter the index.
 - **Degraded Mode Resilience:** Redis and vector-store connection failures are detected at startup and at runtime — caching and search degrade gracefully instead of crashing the service.
 - **Fault Tolerance:** Retry policies with exponential backoff on all external model and vector-store calls.
@@ -29,11 +31,11 @@ Aether is served through a **FastAPI** REST interface, an interactive **CLI**, a
 | API Framework      | FastAPI + uvicorn                                           |
 | Orchestration      | LlamaIndex Workflows (event-driven, `Context`-based steps)  |
 | Vector Store       | Chroma Cloud (`chromadb>=0.6.0`) — hybrid dense+sparse, RRF |
-| Semantic Cache     | Redis 7                                                     |
+| Response Cache     | Redis 7 (exact-match on query string)                       |
 | Job Queue          | RQ (`src/infra/queue.py`, `src/worker.py`)                  |
 | Persistence        | PostgreSQL 15 + SQLAlchemy (job/document records)           |
-| Embeddings         | `BAAI/bge-small-en-v1.5` (HuggingFace)                      |
-| Reranker           | `BAAI/bge-reranker-v2-m3` (FlagEmbedding)                   |
+| Embeddings         | Chroma Cloud server-side Qwen/Splade (dense+sparse) — no local model |
+| Reranker           | `BAAI/bge-reranker-v2-m3` (FlagEmbedding), optional — off by default |
 | LLM                | Groq (Llama 3.3 70B for retrieval, Llama 3.1 8B for metadata enrichment) |
 | Config             | Pydantic v2 / pydantic-settings                             |
 | Resilience         | tenacity (exponential backoff)                              |
@@ -90,7 +92,7 @@ Project-Aether/
 │   │   └── retrieval.py             # Retrieval workflow (HyDE, judgment, rerank)
 │   ├── services/
 │   │   ├── chroma.py                # Chroma Cloud adapter (hybrid collection)
-│   │   └── redis.py                 # Semantic cache (degraded-mode aware)
+│   │   └── redis.py                 # Response cache, exact-match (degraded-mode aware)
 │   ├── infra/queue.py               # RQ queue wiring
 │   ├── jobs/ingestion.py            # Background ingestion job
 │   ├── db/session.py                # SQLAlchemy session
@@ -160,7 +162,7 @@ curl -X POST http://localhost:8000/query \
   -d '{"query": "What is this project?"}'
 ```
 
-Response includes the generated answer and a `from_cache` flag indicating whether the result was served from the semantic cache.
+Response includes the generated answer and a `from_cache` flag indicating whether the result was served from the response cache.
 
 ### Running Tests
 
@@ -187,7 +189,7 @@ Copy `.env.example` to `.env` and adjust for your environment.
 | `REDIS_PORT`                | `6379`                     | Redis port.                                          |
 | `REDIS_PASSWORD`            | *(none)*                   | Redis auth password (required by managed providers like Upstash). |
 | `REDIS_SSL`                 | `false`                    | Enable TLS (required by most managed Redis providers). |
-| `SEMANTIC_CACHE_THRESHOLD`  | `0.85`                     | Embedding similarity threshold for cache hits.       |
+| `ENABLE_RERANKER`           | `false`                    | Enable the `BAAI/bge-reranker-v2-m3` cross-encoder stage (needs ~2GB+ RAM headroom). |
 | `DATABASE_URL`              | `postgresql://user:password@postgres:5432/aether` | Job persistence DSN.          |
 | `LOG_LEVEL`                 | `INFO`                     | Logging verbosity.                                   |
 | `DATA_DIR`                  | `./data`                   | Document source directory for ingestion.             |
