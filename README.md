@@ -47,47 +47,33 @@ Aether is served through a **FastAPI** REST interface, an interactive **CLI**, a
 
 ### Component Flow
 
-```text
-┌────────────┐   ┌───────────────┐   ┌─────────────────┐   ┌──────────────────┐
-│   CLI /    │──▶│  FastAPI      │──▶│  Ingestion      │──▶│  Chroma Cloud    │
-│   API      │   │  (src/api)    │   │  Workflow       │   │  (dense+sparse)  │
-└────────────┘   └───────────────┘   │  (RQ worker)    │   └────────┬─────────┘
-                                     │                 │            │
-                                     │  PIIMasker      │            │
-                                     │  → chunking     │            │
-                                     │  → LLM enrich   │            │
-                                     └─────────────────┘            ▼
-                                                           ┌──────────────────┐
-                                                           │  Retrieval       │
-                                                           │  Workflow        │
-┌────────────┐   ┌───────────────┐   ┌─────────────────┐   │  (HyDE, rerank,  │
-│  Query     │──▶│  Semantic     │──▶│  Relevance      │──▶│  refine loop)    │
-│  (API/CLI) │   │  Cache (Redis)│   │  judgment       │   └──────────────────┘
-└────────────┘   └───────────────┘   └─────────────────┘            │
-                                                                    ▼
-                                                          ┌──────────────────┐
-                                                          │  Groq answer     │
-                                                          │  (+ sources)     │
-                                                          └──────────────────┘
+```mermaid
+graph TD
+    A["CLI / API"] --> B["FastAPI (src/api)"]
+    B --> C["Ingestion Workflow<br/>(RQ worker)"]
+    C --> D["PIIMasker → chunking → LLM enrich"]
+    D --> E["Chroma Cloud<br/>(dense + sparse)"]
+    E --> F["Retrieval Workflow<br/>(HyDE, rerank, refine loop)"]
+
+    Q["Query (API/CLI)"] --> G["Semantic Cache (Redis)"]
+    G --> H["Relevance judgment"]
+    H --> F
+    F --> I["Groq answer (+ sources)"]
 ```
 
 ### Retrieval Pipeline (LLM Query Path)
 
-```text
-query ──► semantic cache lookup (embedding similarity ≥ 0.85 → cached answer)
-   │ miss
-   ▼
-HyDE: generate hypothetical document → embed
-   ▼
-hybrid vector search (dense + sparse, RRF fusion)
-   ▼
-relevance judgment → refine query & re-search (loop) 
-   ▼
-cross-encoder rerank → LongContextReorder
-   ▼
-Groq generation + token/cost accounting
-   ▼
-answer (+ cache for future identical queries)
+```mermaid
+flowchart TD
+    A["query"] --> B{"semantic cache lookup<br/>similarity ≥ 0.85"}
+    B -->|hit| Z["cached answer"]
+    B -->|miss| C["HyDE: generate hypothetical document → embed"]
+    C --> D["hybrid vector search<br/>dense + sparse, RRF fusion"]
+    D --> E["relevance judgment"]
+    E -->|refine| C
+    E -->|pass| F["cross-encoder rerank → LongContextReorder"]
+    F --> G["Groq generation +<br/>token/cost accounting"]
+    G --> H["answer<br/>(+ cache for future identical queries)"]
 ```
 
 ### Project Structure
