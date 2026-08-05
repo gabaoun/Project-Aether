@@ -4,7 +4,7 @@ Event-driven **Retrieval-Augmented Generation (RAG)** search engine built on Pyt
 
 Aether is served through a **FastAPI** REST interface, an interactive **CLI**, and asynchronous **background workers**, with a resilient degraded mode that keeps the system operational when external infrastructure fails.
 
-**Live demo:** https://project-aether-izd2.onrender.com (`/docs` for OpenAPI, `/ui` for the chat UI) — free-tier Render deploy, query-only (ingestion runs as a local job against the same Chroma Cloud database).
+**Live demo:** https://project-aether-izd2.onrender.com/ui/ (`/docs` for OpenAPI) — free-tier Render deploy, query-only (ingestion runs as a local job against the same Chroma Cloud database).
 
 ---
 
