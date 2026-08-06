@@ -1,12 +1,35 @@
+<div align="center">
+  <img src="docs/hero.png" alt="Project Aether Hero Image" width="100%">
+</div>
+
 # Project Aether
 
-Event-driven **Retrieval-Augmented Generation (RAG)** search engine built on Python and LlamaIndex Workflows. Aether ingests documents through a privacy-first pipeline (PII masking → chunking → LLM metadata enrichment → hybrid vector storage), then answers queries through a high-precision retrieval stack: response caching, HyDE, relevance judgment with refinement loops, and an optional cross-encoder reranking stage.
+<p align="center">
+  <img src="https://github.com/gabaoun/Project-Aether/actions/workflows/ci.yml/badge.svg" />
+  <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Powered_by-LlamaIndex-purple?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/API-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+</p>
 
-Aether is served through a **FastAPI** REST interface, an interactive **CLI**, and asynchronous **background workers**, with a resilient degraded mode that keeps the system operational when external infrastructure fails.
+> **🌟 If you find this project useful, please consider giving it a star! It helps the project grow.**
 
-**Live demo:** https://project-aether-izd2.onrender.com/ui/ (`/docs` for OpenAPI) — free-tier Render deploy, query-only (ingestion runs as a local job against the same Chroma Cloud database).
+Event-driven **Retrieval-Augmented Generation (RAG)** search engine built on Python and LlamaIndex Workflows. Aether ingests documents through a privacy-first pipeline (PII masking → chunking → LLM metadata enrichment → hybrid vector storage), then answers queries through a high-precision retrieval stack.
+
+**Live demo:** [project-aether.onrender.com/ui](https://project-aether-izd2.onrender.com/ui/) — free-tier Render deploy.
 
 ---
+
+## 🚀 Quickstart
+
+Run the entire RAG pipeline locally in seconds using Docker:
+
+```bash
+git clone https://github.com/gabaoun/Project-Aether.git
+cd Project-Aether
+docker-compose up -d
+```
+*The API will be instantly available at `http://localhost:8000/docs`.*
 
 ## Key Capabilities
 
