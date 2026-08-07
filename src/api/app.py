@@ -105,10 +105,19 @@ async def query_docs(request: QueryRequest):
         # a dict - but Workflow.run()'s generic RunResultT is unbound in the stub.
         result = cast(dict[str, Any], await retrieval_wf.run(query=request.query))
         source_nodes = result.get("source_nodes", [])
+        sources = []
+        for n in source_nodes:
+            meta = getattr(n, "metadata", {}) or {}
+            fname = meta.get("file_name") or meta.get("file_path") or meta.get("filename") or meta.get("source")
+            if fname:
+                name = os.path.basename(str(fname))
+                if name and name.lower() != "unknown" and name not in sources:
+                    sources.append(name)
+
         return QueryResponse(
             answer=result["answer"],
             from_cache=result.get("from_cache", False),
-            source_nodes=[n.metadata.get("file_name", "unknown") for n in source_nodes]
+            source_nodes=sources
         )
     except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Query failed: {request.query} - Error: {e}")
