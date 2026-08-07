@@ -37,7 +37,7 @@ def handler(event, context):
     try:
         logger.info(f"Downloading {object_key} to {file_path}")
         s3_client.download_file(bucket_name, object_key, file_path)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - Lambda handler boundary: must return a response, never crash
         logger.error(f"Error downloading file from S3: {e}")
         return {"statusCode": 500, "body": "S3 download failed."}
 
@@ -56,7 +56,7 @@ def handler(event, context):
         
         logger.info(f"Workflow completed successfully for {object_key}")
         
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - Lambda handler boundary: must return a response, never crash
         logger.error(f"Ingestion workflow failed: {e}")
         return {"statusCode": 500, "body": "Workflow execution failed."}
     

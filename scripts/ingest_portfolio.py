@@ -1,14 +1,13 @@
 import asyncio
-import os
 import sys
 from pathlib import Path
 
 # Add project root to Python path so we can import src
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.pipeline.ingestion import IngestionWorkflow, StartEvent
-from src.utils.logger import logger
 from src.config.settings import settings
+from src.pipeline.ingestion import IngestionWorkflow
+from src.utils.logger import logger
 
 
 async def main():
@@ -25,9 +24,9 @@ async def main():
     
     try:
         # Pass input_dir to the StartEvent for load_documents
-        result = await workflow.run(input_dir=str(portfolio_dir))
+        await workflow.run(input_dir=str(portfolio_dir))
         logger.info("Ingestion complete. Portfolio documents are now in Chroma Cloud.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - CLI entry point: log and exit cleanly on any failure
         logger.error(f"Ingestion failed: {e}")
         sys.exit(1)
 
