@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Project Aether - Serverless Data Ingestion Pipeline
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 2048
+
+Resources:
+  # O Bucket S3 que vai receber os arquivos
+  AetherDocumentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "aether-documents-${AWS::AccountId}-${AWS::Region}"
+
+  # A Função Lambda
+  IngestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: infra.aws.lambda_handler.handler
+      Runtime: python3.11
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          GROQ_API_KEY: "dummy-key-for-local-sam"
+          CHROMA_HOST: "host.docker.internal"
+          CHROMA_PORT: "8000"
+      Events:
+        DocumentUploadEvent:
+          Type: S3
+          Properties:
+            Bucket: !Ref AetherDocumentsBucket
+            Events: s3:ObjectCreated:*
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref AetherDocumentsBucket
+
+Outputs:
+  BucketName:
+    Description: "S3 Bucket Name for uploading documents"
+    Value: !Ref AetherDocumentsBucket
+  IngestionFunctionArn:
+    Description: "Ingestion Lambda Function ARN"
+    Value: !GetAtt IngestionFunction.Arn
