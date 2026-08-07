@@ -174,7 +174,17 @@ class RetrievalWorkflow(Workflow):
         
         ctx.write_event_to_stream(StreamingStatusEvent(status="Generating answer..."))
         context_str = "\n".join([n.get_content() for n in final_nodes])
-        final_prompt = f"Context:\n{context_str}\n\nQuestion: {ev.query_bundle.query_str}\n\nAnswer:"
+        
+        if settings.portfolio_mode:
+            system_prompt = (
+                "Você é o assistente pessoal e portfólio interativo do Gabriel Penha, um Engenheiro de Software Pleno focado em Backend (Python, Go, FastAPI, C++). "
+                "O usuário fazendo a pergunta é um recrutador ou gestor técnico avaliando o Gabriel. "
+                "Baseie suas respostas estritamente no currículo e nas experiências do Gabriel listadas no Contexto. "
+                "Destaque a visão arquitetural e a resiliência dele. Não invente nenhuma experiência que não esteja no contexto.\n\n"
+            )
+            final_prompt = f"{system_prompt}Context:\n{context_str}\n\nQuestion: {ev.query_bundle.query_str}\n\nAnswer:"
+        else:
+            final_prompt = f"Context:\n{context_str}\n\nQuestion: {ev.query_bundle.query_str}\n\nAnswer:"
         
         try:
             response = await self._call_llm_with_retry(final_prompt)

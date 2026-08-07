@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     data_dir: str = "./data"
     debug: bool = False
     
+    portfolio_mode: bool = False
+    
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()
