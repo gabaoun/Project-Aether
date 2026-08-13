@@ -6,6 +6,7 @@
 
 <p align="center">
   <img src="https://github.com/gabaoun/Project-Aether/actions/workflows/ci.yml/badge.svg" />
+  <img src="https://github.com/gabaoun/Project-Aether/actions/workflows/codeql.yml/badge.svg" />
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/Powered_by-LlamaIndex-purple?style=for-the-badge" />
