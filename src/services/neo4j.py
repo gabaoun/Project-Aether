@@ -54,7 +54,7 @@ class Neo4jService:
     async def extract_and_index_nodes(
         self, nodes: Sequence[BaseNode], llm: Any = None
     ) -> None:
-        if not self.is_enabled() or not nodes:
+        if not self.is_enabled() or not self.graph_store or not nodes:
             return
 
         try:
@@ -77,7 +77,7 @@ class Neo4jService:
     async def retrieve(
         self, query_str: str, llm: Any = None
     ) -> list[NodeWithScore]:
-        if not self.is_enabled() or not query_str:
+        if not self.is_enabled() or not self.graph_store or not query_str:
             return []
 
         try:

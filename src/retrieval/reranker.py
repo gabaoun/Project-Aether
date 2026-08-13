@@ -30,14 +30,12 @@ class AetherLoRAReranker(BaseNodePostprocessor):
         fuse_adapter: bool = True,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            base_model_name=base_model_name,
-            adapter_name_or_path=adapter_name_or_path,
-            top_n=top_n,
-            max_length=max_length,
-            fuse_adapter=fuse_adapter,
-            **kwargs,
-        )
+        super().__init__(**kwargs)
+        self.base_model_name = base_model_name
+        self.adapter_name_or_path = adapter_name_or_path
+        self.top_n = top_n
+        self.max_length = max_length
+        self.fuse_adapter = fuse_adapter
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
         self._init_model()
 
