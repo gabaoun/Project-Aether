@@ -18,6 +18,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from src.config.settings import settings
 from src.models.exceptions import RetrievalException
 from src.services.chroma import ChromaService
+from src.services.neo4j import Neo4jService
 from src.services.redis import SemanticCache
 from src.utils.logger import logger
 from src.utils.token_counter import TokenCounter
@@ -44,9 +45,10 @@ class RetrievalWorkflow(Workflow):
     """
     Workflow for RAG retrieval with query transformation, reranking, and cache checks using Chroma Cloud.      
     """
-    def __init__(self, chroma_service: ChromaService, reranker=None, **kwargs: Any) -> None:
+    def __init__(self, chroma_service: ChromaService, neo4j_service: Neo4jService | None = None, reranker=None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.chroma_service = chroma_service
+        self.neo4j_service = neo4j_service or Neo4jService()
         self.llm = Groq(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key)
         self.reranker = reranker or self._build_reranker()
         self.reorder = LongContextReorder()
@@ -104,12 +106,12 @@ class RetrievalWorkflow(Workflow):
     @step
     async def retrieve_context(self, ctx: Context, ev: QueryTransformedEvent) -> ContextRetrievedEvent:
         ctx.write_event_to_stream(StreamingStatusEvent(status="Retrieving context from Chroma Cloud..."))
-        
+
         # Using Chroma Cloud Hybrid Search
         results = await self.chroma_service.hybrid_search(ev.query_bundle.query_str, n_results=20)
-        
+
         from llama_index.core.schema import TextNode
-        nodes = []
+        vector_nodes = []
         for res in results:
             node = NodeWithScore(
                 node=TextNode(
@@ -119,9 +121,29 @@ class RetrievalWorkflow(Workflow):
                 ),
                 score=res['score']
             )
-            nodes.append(node)
+            vector_nodes.append(node)
 
-        return ContextRetrievedEvent(nodes=nodes, query_bundle=ev.query_bundle, loops=ev.loops)
+        combined_nodes = list(vector_nodes)
+
+        if self.neo4j_service.is_enabled():
+            ctx.write_event_to_stream(StreamingStatusEvent(status="Retrieving graph context from Neo4j..."))
+            graph_nodes = await self.neo4j_service.retrieve(ev.query_bundle.query_str, llm=self.llm)
+
+            seen_ids = {n.node.node_id for n in vector_nodes if hasattr(n, "node") and hasattr(n.node, "node_id")}
+            seen_texts = {n.get_content() for n in vector_nodes if hasattr(n, "get_content")}
+
+            for g_node in graph_nodes:
+                g_id = getattr(g_node.node, "node_id", None) if hasattr(g_node, "node") else None
+                g_text = g_node.get_content() if hasattr(g_node, "get_content") else ""
+                if (g_id and g_id in seen_ids) or (g_text and g_text in seen_texts):
+                    continue
+                combined_nodes.append(g_node)
+                if g_id:
+                    seen_ids.add(g_id)
+                if g_text:
+                    seen_texts.add(g_text)
+
+        return ContextRetrievedEvent(nodes=combined_nodes, query_bundle=ev.query_bundle, loops=ev.loops)
 
     @step
     async def judge_relevance(self, ctx: Context, ev: ContextRetrievedEvent) -> RelevanceJudgedEvent | QueryTransformedEvent:

@@ -33,7 +33,13 @@ class Settings(BaseSettings):
     # eagerly at startup OOM-kills a 512MB free-tier host before the port
     # ever opens. Off by default; enable on a host with enough headroom.
     enable_reranker: bool = False
-    
+
+    enable_neo4j: bool = False
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_username: str = "neo4j"
+    neo4j_password: str = "password"
+    neo4j_database: str = "neo4j"
+
     data_dir: str = "./data"
     debug: bool = False
     

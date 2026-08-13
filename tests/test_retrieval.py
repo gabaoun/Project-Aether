@@ -1,9 +1,17 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import redis
 from llama_index.core.workflow import StartEvent, StopEvent
 
 from src.pipeline.retrieval import QueryTransformedEvent, RetrievalWorkflow
+
+
+@pytest.fixture(autouse=True)
+def mock_redis(mocker):
+    mock_r = MagicMock()
+    mock_r.ping.side_effect = redis.ConnectionError("No Redis")
+    mocker.patch("redis.Redis", return_value=mock_r)
 
 
 @pytest.mark.asyncio
@@ -68,6 +76,8 @@ async def test_full_workflow_run_is_a_valid_event_graph(mocker):
     mock_llm_response = MagicMock()
     mock_llm_response.text = "YES - Gabriel has C++ experience."
     mocker.patch.object(wf, '_call_llm_with_retry', return_value=mock_llm_response)
+    mocker.patch.object(wf.cache, 'get_cache', return_value=None)
+    mocker.patch.object(wf.cache, 'set_cache', return_value=None)
 
     result = await wf.run(query="What C++ experience does Gabriel have?")
 

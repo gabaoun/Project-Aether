@@ -17,6 +17,7 @@ from src.config.settings import settings
 from src.core.pii import PIIMasker
 from src.models.exceptions import IngestionException
 from src.services.chroma import ChromaService
+from src.services.neo4j import Neo4jService
 from src.services.redis import SemanticCache
 from src.utils.logger import logger
 from src.utils.token_counter import TokenCounter
@@ -38,6 +39,7 @@ class IngestionWorkflow(Workflow):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.chroma_service = ChromaService()
+        self.neo4j_service = Neo4jService()
         self.node_parser = SentenceSplitter(
             chunk_size=1024,
             chunk_overlap=20
@@ -116,6 +118,15 @@ class IngestionWorkflow(Workflow):
             
             await self.chroma_service.upsert_documents(docs_to_upsert)
             logger.info(f"[INGESTION] Indexed {len(ev.nodes)} nodes in Chroma Cloud.")
+
+            if self.neo4j_service.is_enabled():
+                try:
+                    from llama_index.llms.groq import Groq
+                    llm = Groq(model="llama-3.1-8b-instant", api_key=settings.groq_api_key)
+                    await self.neo4j_service.extract_and_index_nodes(ev.nodes, llm=llm)
+                except Exception as e:  # noqa: BLE001
+                    logger.error(f"[INGESTION] Neo4j graph indexing failed: {e}")
+
             self.cache.invalidate_cache()
             return StopEvent(result=self.chroma_service)
         except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
