@@ -120,5 +120,6 @@ class AetherLoRAReranker(BaseNodePostprocessor):
         self,
         nodes: list[NodeWithScore],
         query_bundle: QueryBundle | None = None,
+        query_str: str | None = None,
     ) -> list[NodeWithScore]:
         return await asyncio.to_thread(self._postprocess_nodes, nodes, query_bundle)
