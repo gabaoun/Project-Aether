@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import redis
 from llama_index.core.schema import NodeWithScore, TextNode
-from llama_index.core.workflow import Context
 
 from src.pipeline.retrieval import QueryTransformedEvent, RetrievalWorkflow
 from src.services.neo4j import Neo4jService

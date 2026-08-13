@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, List, Optional
+from typing import Any
 
 import torch
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
@@ -12,7 +12,7 @@ from src.utils.logger import logger
 
 class AetherLoRAReranker(BaseNodePostprocessor):
     base_model_name: str = "BAAI/bge-reranker-v2-m3"
-    adapter_name_or_path: Optional[str] = None
+    adapter_name_or_path: str | None = None
     top_n: int = 5
     max_length: int = 512
     fuse_adapter: bool = True
@@ -24,7 +24,7 @@ class AetherLoRAReranker(BaseNodePostprocessor):
     def __init__(
         self,
         base_model_name: str = "BAAI/bge-reranker-v2-m3",
-        adapter_name_or_path: Optional[str] = None,
+        adapter_name_or_path: str | None = None,
         top_n: int = 5,
         max_length: int = 512,
         fuse_adapter: bool = True,
@@ -70,9 +70,9 @@ class AetherLoRAReranker(BaseNodePostprocessor):
 
     def _postprocess_nodes(
         self,
-        nodes: List[NodeWithScore],
-        query_bundle: Optional[QueryBundle] = None,
-    ) -> List[NodeWithScore]:
+        nodes: list[NodeWithScore],
+        query_bundle: QueryBundle | None = None,
+    ) -> list[NodeWithScore]:
         if not nodes or not query_bundle or not query_bundle.query_str:
             return nodes[: self.top_n]
 
@@ -106,7 +106,7 @@ class AetherLoRAReranker(BaseNodePostprocessor):
                     logits = logits.unsqueeze(0)
                 scores = torch.sigmoid(logits).cpu().tolist()
 
-            reranked_nodes: List[NodeWithScore] = []
+            reranked_nodes: list[NodeWithScore] = []
             for node, score in zip(nodes, scores):
                 reranked_nodes.append(
                     NodeWithScore(node=node.node, score=float(score))
@@ -120,7 +120,7 @@ class AetherLoRAReranker(BaseNodePostprocessor):
 
     async def apostprocess_nodes(
         self,
-        nodes: List[NodeWithScore],
-        query_bundle: Optional[QueryBundle] = None,
-    ) -> List[NodeWithScore]:
+        nodes: list[NodeWithScore],
+        query_bundle: QueryBundle | None = None,
+    ) -> list[NodeWithScore]:
         return await asyncio.to_thread(self._postprocess_nodes, nodes, query_bundle)

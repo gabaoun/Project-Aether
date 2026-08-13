@@ -1,7 +1,9 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
 import pytest
 import torch
 from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
+
 from src.retrieval.reranker import AetherLoRAReranker
 
 

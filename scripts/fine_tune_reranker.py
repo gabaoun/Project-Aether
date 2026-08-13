@@ -1,9 +1,10 @@
 import argparse
 import os
+
 import torch
-import torch.nn as nn
 from datasets import Dataset, load_dataset
 from peft import LoraConfig, TaskType, get_peft_model
+from torch import nn
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,

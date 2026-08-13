@@ -1,4 +1,5 @@
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from llama_index.core.indices.property_graph import (
     ImplicitPathExtractor,
@@ -107,5 +108,5 @@ class Neo4jService:
         if self.graph_store and hasattr(self.graph_store, "close"):
             try:
                 self.graph_store.close()
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Error closing graph store: {e}")
