@@ -12,7 +12,7 @@ still works unchanged.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.retrieval.reranker import AetherLoRAReranker  # noqa: F401
+    from src.retrieval.reranker import AetherLoRAReranker
 
 __all__ = ["AetherLoRAReranker"]
 
