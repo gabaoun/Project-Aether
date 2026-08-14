@@ -49,11 +49,11 @@ class RetrievalWorkflow(Workflow):
         super().__init__(**kwargs)
         self.chroma_service = chroma_service
         self.neo4j_service = neo4j_service or Neo4jService()
-        self.llm = Groq(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key)
+        self.llm = Groq(model="llama-3.1-8b-instant", api_key=settings.groq_api_key)
         self.reranker = reranker or self._build_reranker()
         self.reorder = LongContextReorder()
         self.cache = SemanticCache()
-        self.token_counter = TokenCounter(model_name="llama-3.3-70b-versatile")
+        self.token_counter = TokenCounter(model_name="llama-3.1-8b-instant")
 
     def _build_reranker(self):
         if not settings.enable_reranker:
