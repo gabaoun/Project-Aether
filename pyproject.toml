@@ -2,6 +2,10 @@
 ignore_missing_imports = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 
+[tool.ruff]
+# Django migrations are auto-generated and shouldn't be hand-edited to satisfy lint rules.
+extend-exclude = ["**/migrations/**"]
+
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's dependency-injection idiom calls Depends()/Query()/etc. in argument
 # defaults by design - not the mutable-default-argument bug B008 targets.

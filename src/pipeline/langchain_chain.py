@@ -9,12 +9,13 @@ duplicating vector-store logic. This demonstrates hands-on LangChain usage
 retrieval, caching, or reranking - those stay owned by ChromaService/Redis.
 """
 
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough
 from langchain_groq import ChatGroq
+from pydantic import SecretStr
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
@@ -39,12 +40,17 @@ class LangChainRAGChain:
     def __init__(self, chroma_service: ChromaService, n_results: int = 5) -> None:
         self.chroma_service = chroma_service
         self.n_results = n_results
-        self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key)
-        self._chain = (
-            {"context": RunnableLambda(self._retrieve), "question": RunnablePassthrough()}
+        api_key = SecretStr(settings.groq_api_key) if settings.groq_api_key else None
+        self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=api_key)
+        # LCEL's dict-to-RunnableParallel inference is too weak to type the pipeline
+        # end-to-end (RunnablePassthrough alone can't tell mypy its Input is str) -
+        # the cast documents the real, runtime-verified shape instead of fighting it.
+        self._chain = cast(
+            "Runnable[str, str]",
+            {"context": RunnableLambda[str, str](self._retrieve), "question": RunnablePassthrough()}
             | _QA_PROMPT
             | self.llm
-            | StrOutputParser()
+            | StrOutputParser(),
         )
 
     async def _retrieve(self, question: str) -> str:

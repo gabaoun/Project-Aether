@@ -1,5 +1,7 @@
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+from typing import ClassVar
+
+from rest_framework.authentication import BaseAuthentication, TokenAuthentication
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
 from .models import Document
@@ -15,5 +17,5 @@ class DocumentViewSet(ModelViewSet):
 
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    authentication_classes: ClassVar[list[type[BaseAuthentication]]] = [TokenAuthentication]
+    permission_classes: ClassVar[list[type[BasePermission]]] = [IsAuthenticated]
