@@ -12,12 +12,12 @@ from llama_index.core.workflow import (
     Workflow,
     step,
 )
-from llama_index.llms.groq import Groq
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
 from src.models.exceptions import RetrievalException
 from src.services.chroma import ChromaService
+from src.services.groq_client import LightweightGroqLLM
 from src.services.neo4j import Neo4jService
 from src.services.redis import SemanticCache
 from src.utils.logger import logger
@@ -49,7 +49,7 @@ class RetrievalWorkflow(Workflow):
         super().__init__(**kwargs)
         self.chroma_service = chroma_service
         self.neo4j_service = neo4j_service or Neo4jService()
-        self.llm = Groq(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key)
+        self.llm = LightweightGroqLLM(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key)
         self.reranker = reranker or self._build_reranker()
         self.reorder = LongContextReorder()
         self.cache = SemanticCache()

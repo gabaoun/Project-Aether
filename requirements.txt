@@ -13,6 +13,15 @@ llama-index-core==0.14.23
 llama-index-readers-file==0.6.0
 llama-index-embeddings-huggingface==0.7.0
 llama-index-llms-groq==0.5.0
+# Only used directly by src/services/neo4j.py's PropertyGraphIndex extractors
+# (needs the real llama_index BaseLLM interface) - lazy-imported there, only
+# when ENABLE_NEO4J=true. Everywhere else (retrieval.py, ingestion.py's
+# enrich_metadata) uses src/services/groq_client.py's LightweightGroqLLM
+# instead: llama_index.llms.groq.Groq transitively imports transformers -
+# ~470-510MB RSS just to import (measured 2026-08-14, python -X importtime),
+# which alone blows Render's 512MB free-tier budget (render.yaml, plan: free)
+# before the rest of the app even loads. The raw `groq` SDK below costs ~34MB.
+groq==0.37.1
 llama-index-postprocessor-flag-embedding-reranker==0.5.0
 # Pinned below 1.0 deliberately: 1.x dropped the "inference" extra that
 # llama-index-embeddings-huggingface still requests, which otherwise prints

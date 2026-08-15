@@ -17,6 +17,7 @@ from src.config.settings import settings
 from src.core.pii import PIIMasker
 from src.models.exceptions import IngestionException
 from src.services.chroma import ChromaService
+from src.services.groq_client import LightweightGroqLLM
 from src.services.neo4j import Neo4jService
 from src.services.redis import SemanticCache
 from src.utils.logger import logger
@@ -88,8 +89,10 @@ class IngestionWorkflow(Workflow):
 
     @step
     async def enrich_metadata(self, ev: NodesCreatedEvent) -> MetadataEnrichedEvent:
-        from llama_index.llms.groq import Groq
-        llm = Groq(model="llama-3.1-8b-instant", api_key=settings.groq_api_key)
+        # LightweightGroqLLM, not llama_index.llms.groq.Groq: only .acomplete()
+        # is used here, and the llama_index wrapper drags in transformers/torch
+        # for no benefit in this narrow usage - see src/services/groq_client.py.
+        llm = LightweightGroqLLM(model="llama-3.1-8b-instant", api_key=settings.groq_api_key)
         
         enriched_nodes = []
         for node in ev.nodes:

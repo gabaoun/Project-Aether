@@ -12,7 +12,6 @@ from src.config.settings import settings
 from src.db.session import get_db
 from src.infra.queue import get_queue
 from src.models.db import IngestionJob
-from src.pipeline.langchain_chain import LangChainRAGChain
 from src.pipeline.retrieval import RetrievalWorkflow
 from src.services.chroma import ChromaService
 from src.utils.logger import logger
@@ -30,7 +29,20 @@ async def lifespan(app: FastAPI):
         # Initialize search infrastructure on startup
         chroma_service = ChromaService()
         retrieval_wf = RetrievalWorkflow(chroma_service=chroma_service)
-        langchain_chain = LangChainRAGChain(chroma_service=chroma_service)
+
+        # langchain-core alone adds ~230-290MB RSS on import (measured
+        # 2026-08-14) - same OOM risk on Render's 512MB free tier as the
+        # reranker below, so it gets the same opt-in treatment: off by
+        # default, and the import itself (not just the instantiation)
+        # stays inside this branch so it never touches memory unless asked.
+        if settings.enable_langchain_engine:
+            from src.pipeline.langchain_chain import LangChainRAGChain
+
+            langchain_chain = LangChainRAGChain(chroma_service=chroma_service)
+            logger.info("LangChain engine enabled.")
+        else:
+            logger.info("LangChain engine disabled via settings.enable_langchain_engine (default) - skipping import to save memory on constrained hosts.")
+
         logger.info("API Startup: Chroma Cloud retrieval ready.")
     except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Startup failed: {e}")

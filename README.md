@@ -113,6 +113,24 @@ flowchart TD
 
 *Note: Caching completely bypasses LLM call latencies for identical queries, saving up to 98% in API costs during high-throughput workloads.*
 
+### Memory Footprint (Render Free Tier)
+
+Render's free tier caps a service at 512MB RSS - exceeded, the process gets
+OOM-killed before the port even opens. Two things are engineered around this:
+
+- **Reranker (`ENABLE_RERANKER`, default off):** `BAAI/bge-reranker-v2-m3` is
+  ~2GB+ resident once loaded - opt-in only.
+- **LLM client (`src/services/groq_client.py`):** `llama_index.llms.groq.Groq`
+  transitively imports `transformers` (pulling in torch, sklearn, scipy,
+  pandas) on every import - **~470-510MB RSS measured**, regardless of the
+  reranker flag, since it's the LLM class the primary `/query` path always
+  constructs. Swapped for a ~15-line wrapper around the official `groq` SDK
+  (~34MB) everywhere only `.acomplete()` is needed. Measured impact:
+  **app import RSS dropped from ~554MB to ~169MB.** `src/services/neo4j.py`
+  still uses the real llama_index `Groq` class (needed for
+  `PropertyGraphIndex`'s LLM interface) but only imports it lazily, gated
+  behind `ENABLE_NEO4J`.
+
 ### Project Structure
 
 ```text

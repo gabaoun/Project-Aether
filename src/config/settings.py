@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     # ever opens. Off by default; enable on a host with enough headroom.
     enable_reranker: bool = False
 
+    # langchain-core alone costs ~230-290MB RSS just to import (measured
+    # 2026-08-14, python -c "from langchain_core... import ...") - close
+    # to the entire 512MB budget on Render's free tier by itself, before
+    # the rest of the app (llama-index-core, chromadb, fastapi) is even
+    # loaded. Off by default for the same reason as enable_reranker above;
+    # src/api/app.py keeps the import itself inside the flag, not just the
+    # instantiation, so disabling this actually avoids paying the cost.
+    enable_langchain_engine: bool = False
+
     enable_neo4j: bool = False
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_username: str = "neo4j"

@@ -8,7 +8,6 @@ from llama_index.core.indices.property_graph import (
     SimpleLLMPathExtractor,
 )
 from llama_index.core.schema import BaseNode, NodeWithScore
-from llama_index.llms.groq import Groq
 
 from src.config.settings import settings
 from src.utils.logger import logger
@@ -101,6 +100,14 @@ class Neo4jService:
 
     def _get_llm(self) -> Any | None:
         if settings.groq_api_key:
+            # Lazy import: this is the real llama_index BaseLLM (needed for
+            # PropertyGraphIndex/SimpleLLMPathExtractor's interface, unlike
+            # the LightweightGroqLLM used elsewhere) - but it drags in
+            # transformers/torch (~470MB+, see src/services/groq_client.py's
+            # docstring), so it only loads when Neo4j is actually enabled
+            # and an LLM is actually requested, not on every app boot.
+            from llama_index.llms.groq import Groq
+
             return Groq(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key)
         return None
 
