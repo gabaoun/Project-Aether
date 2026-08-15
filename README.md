@@ -34,6 +34,7 @@ docker-compose up -d
 
 ## Key Capabilities
 
+- **Dual Orchestration Engines:** the primary retrieval path is a LlamaIndex `Workflow` (HyDE, relevance judgment, reranking); a parallel LangChain LCEL chain (`src/pipeline/langchain_chain.py`, exposed at `POST /query/langchain`) reuses the same Chroma Cloud index for a directly comparable RetrievalQA implementation — same data, two orchestration libraries.
 - **Event-Driven Ingestion:** LlamaIndex `Workflow` orchestration — documents are loaded, masked for PII, chunked, metadata-enriched by an LLM, and indexed into Chroma Cloud asynchronously (RQ background jobs persisted in PostgreSQL).
 - **Hybrid Vector Search & GraphRAG:** Chroma Cloud dense (Qwen) + sparse (Splade) embeddings with RRF fusion, integrated with Neo4j Knowledge Graphs for graph-based contextual enrichment.
 - **High-Precision Retrieval & PEFT Reranking:** HyDE (Hypothetical Document Embeddings), multi-hop query refinement with relevance judgment, `LongContextReorder`, and PEFT/LoRA fine-tuned cross-encoder reranking (`BAAI/bge-reranker-v2-m3`).
@@ -53,7 +54,7 @@ docker-compose up -d
 | :----------------- | :---------------------------------------------------------- |
 | Language           | Python 3.11+                                                |
 | API Framework      | FastAPI + uvicorn                                           |
-| Orchestration      | LlamaIndex Workflows (event-driven, `Context`-based steps)  |
+| Orchestration      | LlamaIndex Workflows (event-driven, `Context`-based steps) + LangChain LCEL (alternative engine) |
 | Vector Store       | Chroma Cloud (`chromadb>=0.6.0`) — hybrid dense+sparse, RRF |
 | Response Cache     | Redis 7 (exact-match on query string)                       |
 | Job Queue          | RQ (`src/infra/queue.py`, `src/worker.py`)                  |
@@ -118,12 +119,13 @@ flowchart TD
 Project-Aether/
 ├── main.py                          # Entry: CLI (default) or --api (uvicorn)
 ├── src/
-│   ├── api/app.py                   # FastAPI: /health, /ingest, /jobs/{id}, /query
+│   ├── api/app.py                   # FastAPI: /health, /ingest, /jobs/{id}, /query, /query/langchain
 │   ├── config/settings.py           # Pydantic-settings, env-driven config
 │   ├── core/pii.py                  # Regex PII masker (email, phone)
 │   ├── pipeline/
 │   │   ├── ingestion.py             # Event-driven ingestion workflow
-│   │   └── retrieval.py             # Retrieval workflow (HyDE, judgment, rerank)
+│   │   ├── retrieval.py             # Retrieval workflow (HyDE, judgment, rerank)
+│   │   └── langchain_chain.py       # LangChain LCEL RAG chain (alternative to retrieval.py)
 │   ├── services/
 │   │   ├── chroma.py                # Chroma Cloud adapter (hybrid collection)
 │   │   └── redis.py                 # Response cache, exact-match (degraded-mode aware)
@@ -134,12 +136,24 @@ Project-Aether/
 │   └── utils/                       # Logger, token counter
 ├── scripts/migrate_to_chroma.py     # Qdrant → Chroma Cloud migration
 ├── docs/adr/                        # Architecture Decision Records (001–003)
+├── infra/terraform/                 # VPC + ECS Fargate + Lambda/API Gateway IaC (see its own README)
+├── services/
+│   ├── go/                          # Go microservices (gateway, scraper, websocket)
+│   └── django/document_registry/    # Django REST Framework document tagging/review API (see its own README)
 ├── tests/                           # pytest suite (isolated via mocking)
 ├── Dockerfile
 ├── docker-compose.yml               # api + worker + redis + postgres
+├── template.yaml                    # AWS SAM: S3-triggered ingestion Lambda
 ├── .env.example
 └── .github/workflows/ci.yml
 ```
+
+### Infrastructure as Code
+
+`infra/terraform/` provisions an ECS Fargate deployment of the API plus a
+second, HTTP-triggerable ingestion Lambda behind API Gateway - alongside the
+S3-event-triggered Lambda already deployed via AWS SAM (`template.yaml`
+above). See `infra/terraform/README.md` for scope, caveats, and usage.
 
 ---
 

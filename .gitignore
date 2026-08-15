@@ -12,3 +12,10 @@ data/
 .idea/
 .vscode/
 .mypy_cache/
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/build/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/.terraform.lock.hcl

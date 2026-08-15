@@ -12,6 +12,7 @@ from src.config.settings import settings
 from src.db.session import get_db
 from src.infra.queue import get_queue
 from src.models.db import IngestionJob
+from src.pipeline.langchain_chain import LangChainRAGChain
 from src.pipeline.retrieval import RetrievalWorkflow
 from src.services.chroma import ChromaService
 from src.utils.logger import logger
@@ -19,15 +20,17 @@ from src.utils.logger import logger
 # Global variables for chroma service and workflow
 chroma_service = None
 retrieval_wf = None
+langchain_chain = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global chroma_service, retrieval_wf
-    
+    global chroma_service, retrieval_wf, langchain_chain
+
     try:
         # Initialize search infrastructure on startup
         chroma_service = ChromaService()
         retrieval_wf = RetrievalWorkflow(chroma_service=chroma_service)
+        langchain_chain = LangChainRAGChain(chroma_service=chroma_service)
         logger.info("API Startup: Chroma Cloud retrieval ready.")
     except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Startup failed: {e}")
@@ -122,5 +125,35 @@ async def query_docs(request: QueryRequest):
         )
     except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
         logger.error(f"Query failed: {request.query} - Error: {e}")
+        detail = str(e) if settings.debug else "An error occurred during query processing."
+        raise HTTPException(status_code=500, detail=detail)
+
+@app.post("/query/langchain", response_model=QueryResponse)
+async def query_docs_langchain(request: QueryRequest):
+    """
+    Same query surface as /query, but orchestrated through a LangChain LCEL
+    chain instead of the LlamaIndex Workflow - both read the same Chroma
+    Cloud index, so results are directly comparable between engines.
+    """
+    if not langchain_chain:
+        raise HTTPException(status_code=503, detail="Search index is not initialized.")
+
+    try:
+        result = await langchain_chain.aquery(request.query)
+        source_nodes = []
+        for meta in result.get("source_nodes", []):
+            fname = meta.get("file_name") or meta.get("file_path") or meta.get("filename") or meta.get("source")
+            if fname:
+                name = os.path.basename(str(fname))
+                if name and name.lower() != "unknown" and name not in source_nodes:
+                    source_nodes.append(name)
+
+        return QueryResponse(
+            answer=result["answer"],
+            from_cache=result.get("from_cache", False),
+            source_nodes=source_nodes
+        )
+    except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
+        logger.error(f"LangChain query failed: {request.query} - Error: {e}")
         detail = str(e) if settings.debug else "An error occurred during query processing."
         raise HTTPException(status_code=500, detail=detail)
