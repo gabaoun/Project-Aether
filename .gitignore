@@ -13,6 +13,10 @@ data/
 .vscode/
 .mypy_cache/
 
+# Frontend (built output is committed into src/api/static/, sources stay here)
+frontend/node_modules/
+frontend/dist/
+
 # Terraform
 infra/terraform/.terraform/
 infra/terraform/build/
