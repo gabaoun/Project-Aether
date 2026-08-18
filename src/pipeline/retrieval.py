@@ -196,17 +196,29 @@ class RetrievalWorkflow(Workflow):
         
         ctx.write_event_to_stream(StreamingStatusEvent(status="Generating answer..."))
         context_str = "\n".join([n.get_content() for n in final_nodes])
-        
+
+        # frontend/src/utils/parseMarkdown.js is a deliberately minimal
+        # renderer (bold, inline code, lists, paragraphs only - no tables,
+        # no headers, no raw HTML). Constrain the model to that exact
+        # subset, otherwise GFM tables/headers/<br> render as literal text.
+        format_instructions = (
+            "Format your answer in plain prose and simple markdown only: "
+            "**bold** and `inline code` are fine, and short bullet lists "
+            "(lines starting with \"- \") are fine. Do not use markdown "
+            "tables, headings (#), or raw HTML tags anywhere in the answer.\n\n"
+        )
+
         if settings.portfolio_mode:
             system_prompt = (
                 "You are the personal assistant and interactive portfolio of Gabriel Penha, a Mid-Level Software Engineer focused on Backend (Python, Go, FastAPI, C++). "
                 "The user asking the question is a recruiter or hiring manager evaluating Gabriel. "
                 "Base your answers strictly on Gabriel's resume and experience listed in the Context. Always answer in English. "
                 "Highlight his architectural vision and engineering resilience. Do not invent any experience that is not present in the context.\n\n"
+                f"{format_instructions}"
             )
             final_prompt = f"{system_prompt}Context:\n{context_str}\n\nQuestion: {ev.query_bundle.query_str}\n\nAnswer:"
         else:
-            final_prompt = f"Context:\n{context_str}\n\nQuestion: {ev.query_bundle.query_str}\n\nAnswer:"
+            final_prompt = f"{format_instructions}Context:\n{context_str}\n\nQuestion: {ev.query_bundle.query_str}\n\nAnswer:"
         
         try:
             response = await self._call_llm_with_retry(final_prompt)

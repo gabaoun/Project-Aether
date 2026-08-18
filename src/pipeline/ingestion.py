@@ -119,6 +119,7 @@ class IngestionWorkflow(Workflow):
                     "metadata": node.metadata
                 })
             
+            await self.chroma_service.clear_collection()
             await self.chroma_service.upsert_documents(docs_to_upsert)
             logger.info(f"[INGESTION] Indexed {len(ev.nodes)} nodes in Chroma Cloud.")
 

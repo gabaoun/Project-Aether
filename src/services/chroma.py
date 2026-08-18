@@ -80,6 +80,22 @@ class ChromaService:
             
         return chunks
 
+    async def clear_collection(self) -> None:
+        """
+        Deletes every chunk currently in the collection. Portfolio ingestion
+        (scripts/ingest_portfolio.py) is a full-snapshot rebuild, not an
+        incremental sync - node IDs are random per run (llama_index
+        SentenceSplitter node_id), so without this, upsert_documents()
+        never overwrites old chunks, it only piles new ones on top,
+        letting stale/deleted-source-file chunks accumulate forever.
+        """
+        collection = self.get_or_create_collection()
+        existing = collection.get(include=[])
+        existing_ids = existing.get("ids", [])
+        if existing_ids:
+            collection.delete(ids=existing_ids)
+            logger.info(f"Cleared {len(existing_ids)} existing chunks from Chroma collection '{self.collection_name}'.")
+
     async def upsert_documents(self, documents: list[dict[str, Any]]):
         """
         Upserts documents into Chroma Cloud.
