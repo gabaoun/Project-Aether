@@ -41,7 +41,7 @@ class LangChainRAGChain:
         self.chroma_service = chroma_service
         self.n_results = n_results
         api_key = SecretStr(settings.groq_api_key) if settings.groq_api_key else None
-        self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=api_key)
+        self.llm = ChatGroq(model="openai/gpt-oss-120b", api_key=api_key)
         # LCEL's dict-to-RunnableParallel inference is too weak to type the pipeline
         # end-to-end (RunnablePassthrough alone can't tell mypy its Input is str) -
         # the cast documents the real, runtime-verified shape instead of fighting it.

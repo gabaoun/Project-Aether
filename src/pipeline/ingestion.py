@@ -92,7 +92,7 @@ class IngestionWorkflow(Workflow):
         # LightweightGroqLLM, not llama_index.llms.groq.Groq: only .acomplete()
         # is used here, and the llama_index wrapper drags in transformers/torch
         # for no benefit in this narrow usage - see src/services/groq_client.py.
-        llm = LightweightGroqLLM(model="llama-3.1-8b-instant", api_key=settings.groq_api_key)
+        llm = LightweightGroqLLM(model="openai/gpt-oss-20b", api_key=settings.groq_api_key)
         
         enriched_nodes = []
         for node in ev.nodes:
@@ -125,7 +125,7 @@ class IngestionWorkflow(Workflow):
             if self.neo4j_service.is_enabled():
                 try:
                     from llama_index.llms.groq import Groq
-                    llm = Groq(model="llama-3.1-8b-instant", api_key=settings.groq_api_key)
+                    llm = Groq(model="openai/gpt-oss-20b", api_key=settings.groq_api_key)
                     await self.neo4j_service.extract_and_index_nodes(ev.nodes, llm=llm)
                 except Exception as e:  # noqa: BLE001
                     logger.error(f"[INGESTION] Neo4j graph indexing failed: {e}")

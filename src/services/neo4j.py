@@ -108,7 +108,7 @@ class Neo4jService:
             # and an LLM is actually requested, not on every app boot.
             from llama_index.llms.groq import Groq
 
-            return Groq(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key)
+            return Groq(model="openai/gpt-oss-120b", api_key=settings.groq_api_key)
         return None
 
     def close(self) -> None:
