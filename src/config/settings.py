@@ -51,8 +51,13 @@ class Settings(BaseSettings):
 
     data_dir: str = "./data"
     debug: bool = False
-    
+
     portfolio_mode: bool = False
+
+    # Shared secret required (via X-Admin-Token header) to hit POST /ingest.
+    # If unset, /ingest stays open - fine for local dev, not for a public
+    # deploy (it enqueues a full Postgres/RQ job + Chroma collection rebuild).
+    admin_token: str | None = None
     
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

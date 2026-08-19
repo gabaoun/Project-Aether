@@ -78,16 +78,26 @@ def test_query_endpoint_error(mock_retrieval_wf, mocker):
     assert response.status_code == 500
     assert "Retrieval failed" in response.json()["detail"]
 
-def test_ingest_endpoint(mock_db, mock_queue):
-    # Mock job creation
+def test_ingest_endpoint(mock_db, mock_queue, mocker):
+    # Fix admin_token for this test rather than relying on the local .env's
+    # ambient value - the endpoint's auth behavior should be deterministic.
+    mocker.patch("src.api.app.settings.admin_token", "test-admin-token")
+
     job_id = uuid.uuid4()
     mock_db.add.side_effect = lambda job: setattr(job, 'id', job_id)
-    
-    response = client.post("/ingest")
-    
+
+    response = client.post("/ingest", headers={"X-Admin-Token": "test-admin-token"})
+
     assert response.status_code == 202
     assert response.json()["job_id"] == str(job_id)
     mock_queue.enqueue.assert_called_once()
+
+def test_ingest_endpoint_requires_admin_token(mocker):
+    mocker.patch("src.api.app.settings.admin_token", "test-admin-token")
+
+    response = client.post("/ingest")
+
+    assert response.status_code == 401
 
 def test_get_job_status(mock_db):
     job_id = str(uuid.uuid4())

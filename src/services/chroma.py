@@ -39,10 +39,23 @@ class ChromaService:
     def get_or_create_collection(self) -> Collection:
         """
         Creates or retrieves a collection using Chroma Cloud's server-side Qwen embedding.
+        Ingestion-only: requires a write-capable API key, since the "create"
+        branch needs write access even when the collection already exists.
         """
         return self.client.get_or_create_collection(
             name=self.collection_name,
             metadata={"hnsw:space": "cosine"},
+            embedding_function=self.embedding_function,
+        )
+
+    def get_collection(self) -> Collection:
+        """
+        Retrieves the existing collection without attempting to create it -
+        the query path uses this instead of get_or_create_collection() so it
+        works with a read-only Chroma Cloud API key.
+        """
+        return self.client.get_collection(
+            name=self.collection_name,
             embedding_function=self.embedding_function,
         )
 
@@ -135,7 +148,7 @@ class ChromaService:
         """
         Performs hybrid search (dense + sparse) with RRF and GroupBy deduplication.
         """
-        collection = self.get_or_create_collection()
+        collection = self.get_collection()
         
         # Following https://docs.trychroma.com/cloud/search-api/hybrid-search.md
         # and https://docs.trychroma.com/cloud/search-api/group-by.md

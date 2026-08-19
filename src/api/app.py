@@ -1,11 +1,12 @@
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, cast
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from src.config.settings import settings
@@ -21,9 +22,43 @@ chroma_service = None
 retrieval_wf = None
 langchain_chain = None
 
+# Single-instance, in-memory fixed-window rate limiter (Render free-tier runs
+# one uvicorn process, so no need for a Redis-backed shared limiter). Keyed
+# by client IP (X-Forwarded-For first hop, falling back to the raw peer
+# address) + bucket name, so /query and /ingest are limited independently.
+_RATE_LIMIT_BUCKETS: dict[str, tuple[float, int]] = {}
+_RATE_LIMIT_MAX_TRACKED = 5000
+
+
+def _client_key(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _enforce_rate_limit(request: Request, bucket: str, limit: int, window_seconds: float = 60.0) -> None:
+    # Bound memory under a spoofed-IP flood rather than let the dict grow forever.
+    if len(_RATE_LIMIT_BUCKETS) > _RATE_LIMIT_MAX_TRACKED:
+        _RATE_LIMIT_BUCKETS.clear()
+
+    key = f"{bucket}:{_client_key(request)}"
+    now = time.monotonic()
+    window_start, count = _RATE_LIMIT_BUCKETS.get(key, (now, 0))
+    if now - window_start >= window_seconds:
+        window_start, count = now, 0
+    count += 1
+    _RATE_LIMIT_BUCKETS[key] = (window_start, count)
+    if count > limit:
+        raise HTTPException(status_code=429, detail="Too many requests - slow down and try again shortly.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global chroma_service, retrieval_wf, langchain_chain
+
+    if not settings.admin_token:
+        logger.warning("ADMIN_TOKEN not set - POST /ingest is unauthenticated. Set ADMIN_TOKEN on public deploys.")
 
     try:
         # Initialize search infrastructure on startup
@@ -56,7 +91,9 @@ _STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/ui", StaticFiles(directory=_STATIC_DIR, html=True), name="ui")
 
 class QueryRequest(BaseModel):
-    query: str
+    # Bounds the token cost (and $ cost) a single request can push through
+    # the LLM - a recruiter question is never anywhere near 1000 chars.
+    query: str = Field(..., min_length=1, max_length=1000)
 
 class QueryResponse(BaseModel):
     answer: str
@@ -79,10 +116,18 @@ async def health():
     return {"status": "ok", "retrieval_ready": retrieval_wf is not None}
 
 @app.post("/ingest", response_model=IngestResponse, status_code=202)
-async def ingest_docs(db: Session = Depends(get_db)):
+async def ingest_docs(
+    request: Request,
+    db: Session = Depends(get_db),
+    x_admin_token: str | None = Header(default=None),
+):
     """
     Trigger document ingestion as a background job.
     """
+    if settings.admin_token and x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized.")
+    _enforce_rate_limit(request, "ingest", limit=3, window_seconds=3600)
+
     try:
         # Create a job record in Postgres
         job = IngestionJob(status="PENDING")
@@ -112,14 +157,15 @@ async def get_job_status(job_id: str, db: Session = Depends(get_db)):
     return JobStatusResponse(id=str(job.id), status=job.status or "UNKNOWN")
 
 @app.post("/query", response_model=QueryResponse)
-async def query_docs(request: QueryRequest):
+async def query_docs(request: Request, body: QueryRequest):
     if not retrieval_wf:
         raise HTTPException(status_code=503, detail="Search index is not initialized.")
-    
+    _enforce_rate_limit(request, "query", limit=20, window_seconds=60)
+
     try:
         # RetrievalWorkflow's final step always returns StopEvent(result={...}) -
         # a dict - but Workflow.run()'s generic RunResultT is unbound in the stub.
-        result = cast(dict[str, Any], await retrieval_wf.run(query=request.query))
+        result = cast(dict[str, Any], await retrieval_wf.run(query=body.query))
         source_nodes = result.get("source_nodes", [])
         sources = []
         for n in source_nodes:
@@ -136,12 +182,12 @@ async def query_docs(request: QueryRequest):
             source_nodes=sources
         )
     except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
-        logger.error(f"Query failed: {request.query} - Error: {e}")
+        logger.error(f"Query failed: {body.query} - Error: {e}")
         detail = str(e) if settings.debug else "An error occurred during query processing."
         raise HTTPException(status_code=500, detail=detail)
 
 @app.post("/query/langchain", response_model=QueryResponse)
-async def query_docs_langchain(request: QueryRequest):
+async def query_docs_langchain(request: Request, body: QueryRequest):
     """
     Same query surface as /query, but orchestrated through a LangChain LCEL
     chain instead of the LlamaIndex Workflow - both read the same Chroma
@@ -149,9 +195,10 @@ async def query_docs_langchain(request: QueryRequest):
     """
     if not langchain_chain:
         raise HTTPException(status_code=503, detail="Search index is not initialized.")
+    _enforce_rate_limit(request, "query", limit=20, window_seconds=60)
 
     try:
-        result = await langchain_chain.aquery(request.query)
+        result = await langchain_chain.aquery(body.query)
         source_nodes = []
         for meta in result.get("source_nodes", []):
             fname = meta.get("file_name") or meta.get("file_path") or meta.get("filename") or meta.get("source")
@@ -166,6 +213,6 @@ async def query_docs_langchain(request: QueryRequest):
             source_nodes=source_nodes
         )
     except Exception as e:  # noqa: BLE001 - boundary catch, must degrade gracefully rather than crash the pipeline
-        logger.error(f"LangChain query failed: {request.query} - Error: {e}")
+        logger.error(f"LangChain query failed: {body.query} - Error: {e}")
         detail = str(e) if settings.debug else "An error occurred during query processing."
         raise HTTPException(status_code=500, detail=detail)

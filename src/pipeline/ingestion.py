@@ -1,4 +1,5 @@
 
+import re
 from typing import Any
 
 from llama_index.core import Document
@@ -22,6 +23,16 @@ from src.services.neo4j import Neo4jService
 from src.services.redis import SemanticCache
 from src.utils.logger import logger
 from src.utils.token_counter import TokenCounter
+
+# Source docs can wrap internal/strategy notes (not meant for the public
+# recruiter-facing bot) in <!-- PRIVATE:START --> ... <!-- PRIVATE:END -->
+# comments; those spans are dropped before chunking/embedding so they never
+# reach the retrievable corpus, while staying intact for other tooling that
+# reads the raw file directly.
+_PRIVATE_BLOCK_RE = re.compile(
+    r'<!--\s*PRIVATE:START\s*-->.*?<!--\s*PRIVATE:END\s*-->',
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 class DocumentsLoadedEvent(Event):
@@ -59,9 +70,9 @@ class IngestionWorkflow(Workflow):
         reader = SimpleDirectoryReader(input_dir=input_dir)
         documents = reader.load_data()
         
-        # Async PII Masking
-        original_texts = [doc.text for doc in documents]
-        masked_texts = await self.pii_masker.mask_documents_async(original_texts)
+        # Strip PRIVATE-marked spans, then PII-mask what's left
+        stripped_texts = [_PRIVATE_BLOCK_RE.sub("", doc.text) for doc in documents]
+        masked_texts = await self.pii_masker.mask_documents_async(stripped_texts)
         
         masked_documents = []
         for doc, masked_text in zip(documents, masked_texts):
