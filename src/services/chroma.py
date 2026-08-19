@@ -50,9 +50,22 @@ class ChromaService:
 
     def get_collection(self) -> Collection:
         """
-        Retrieves the existing collection without attempting to create it -
-        the query path uses this instead of get_or_create_collection() so it
-        works with a read-only Chroma Cloud API key.
+        Retrieves the existing collection without attempting to create it,
+        so the query path doesn't need create rights on the collection.
+
+        This alone does NOT make a read-only Chroma Cloud API key usable for
+        the deployed query service. chromadb.CloudClient's constructor
+        (chromadb.api.client.Client.__init__) unconditionally calls an
+        admin-scoped _validate_tenant_database() -> get_tenant()/
+        get_database() before any query happens - a key scoped read-only to
+        a single database doesn't have rights for that tenant-level call, so
+        it fails at ChromaService() construction, not at query time.
+        Confirmed 2026-08-18 against a real Chroma Cloud read-only key:
+        chromadb.errors.ChromaError: Permission denied., raised from
+        Client._validate_tenant_database's self._admin_client.get_tenant().
+        Until Chroma Cloud's client/API changes this, CHROMA_API_KEY must be
+        a key with tenant-read scope (in practice: the same read-write key
+        used for ingestion) even for a query-only deployment.
         """
         return self.client.get_collection(
             name=self.collection_name,

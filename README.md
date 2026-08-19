@@ -261,7 +261,20 @@ Copy `.env.example` to `.env` and adjust for your environment.
 | `DATA_DIR`                  | `./data`                   | Document source directory for ingestion.             |
 | `PHOENIX_COLLECTOR_ENDPOINT`| `http://localhost:6006`    | Arize Phoenix collector endpoint (observability).    |
 | `DEBUG`                     | `false`                    | When `true`, surfaces detailed error payloads.       |
+| `ADMIN_TOKEN`                | *(unset = `/ingest` is open)* | Shared secret required via `X-Admin-Token` header to call `POST /ingest`. Set this on any public deploy. |
 | `QDRANT_URL` / `QDRANT_API_KEY` / `QDRANT_COLLECTION` | — | Legacy Qdrant settings (migration source). |
+
+> **`CHROMA_API_KEY` must be read-write, even for a query-only deploy.** A
+> Chroma Cloud API key scoped read-only to a single database looks like the
+> right choice for the deployed web service (it never ingests), but
+> `chromadb.CloudClient`'s constructor always makes an admin-scoped
+> `get_tenant()`/`get_database()` call before any query can run - a
+> database-scoped read-only key doesn't have rights for that call, so the
+> app fails at startup (`chromadb.errors.ChromaError: Permission denied.`),
+> not at query time. Confirmed 2026-08-18 against a real Chroma Cloud
+> read-only key. Use the same read-write key here as for
+> `scripts/ingest_portfolio.py` until Chroma Cloud's client/API changes
+> this. See `src/services/chroma.py`'s `get_collection()` docstring.
 
 ---
 
