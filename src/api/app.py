@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -86,6 +87,13 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Project Aether RAG API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-Admin-Token"],
+)
 
 _STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/ui", StaticFiles(directory=_STATIC_DIR, html=True), name="ui")

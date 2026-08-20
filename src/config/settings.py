@@ -54,6 +54,14 @@ class Settings(BaseSettings):
 
     portfolio_mode: bool = False
 
+    # Origins allowed to call the API from a browser (CORS). Comma-separated
+    # via env var CORS_ORIGINS. Defaults cover the portfolio site + local dev.
+    cors_origins: str = "https://gabaoun.github.io,http://localhost:3000,http://localhost:5173"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
     # Shared secret required (via X-Admin-Token header) to hit POST /ingest.
     # If unset, /ingest stays open - fine for local dev, not for a public
     # deploy (it enqueues a full Postgres/RQ job + Chroma collection rebuild).
